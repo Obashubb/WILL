@@ -1,12 +1,15 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/colors.dart';
+import '../../core/router/routes.dart';
+import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';
 import 'auth_controller.dart';
-import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,22 +35,24 @@ class _LoginScreenState extends State<LoginScreen> {
       controller.lastError.value = 'Enter your email and password.';
       return;
     }
-    await controller.signIn(_email.text, _password.text);
+    final ok = await controller.signIn(_email.text, _password.text);
+    if (ok && mounted) context.go(WillRoutes.deviceSetup);
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<AuthController>();
     return Scaffold(
+      appBar: AppBar(),
       body: SafeArea(
         child: AutofillGroup(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 40, 20, 32),
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
             children: [
               const Text(
                 'Welcome back.',
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 30,
                   fontWeight: FontWeight.w700,
                   height: 1.05,
                   color: WillColors.textPrimary,
@@ -61,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: WillColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
               WillTextField(
                 controller: _email,
                 label: 'Email',
@@ -69,6 +74,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.email],
+                onChanged: (_) {
+                  if (controller.lastError.value != null) {
+                    controller.lastError.value = null;
+                  }
+                },
               ),
               const SizedBox(height: 16),
               WillTextField(
@@ -79,33 +89,43 @@ class _LoginScreenState extends State<LoginScreen> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.password],
                 onSubmitted: (_) => _submit(controller),
+                onChanged: (_) {
+                  if (controller.lastError.value != null) {
+                    controller.lastError.value = null;
+                  }
+                },
                 suffix: IconButton(
                   onPressed: () =>
                       setState(() => _showPassword = !_showPassword),
                   icon: Icon(
                     _showPassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
+                        ? CupertinoIcons.eye_slash
+                        : CupertinoIcons.eye,
                     color: WillColors.textSecondary,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Obx(() {
                 final err = controller.lastError.value;
-                if (err == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Text(
-                    err,
-                    style: const TextStyle(
-                      color: WillColors.danger,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ).animate().fadeIn(duration: 180.ms);
+                return AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutQuart,
+                  child: err == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            err,
+                            style: const TextStyle(
+                              color: WillColors.danger,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ).animate().fadeIn(duration: 160.ms),
+                );
               }),
               Obx(
                 () => WillPrimaryButton(
@@ -118,14 +138,17 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 18),
               Center(
-                child: TextButton(
-                  onPressed: () => Get.to(() => const SignUpScreen()),
-                  child: const Text(
-                    'New here? Create an account',
-                    style: TextStyle(
-                      color: WillColors.primary,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 13,
+                child: WillInkwell(
+                  onTap: () => context.pushReplacement(WillRoutes.signup),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: Text(
+                      'New here? Create an account',
+                      style: TextStyle(
+                        color: WillColors.primary,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13,
+                      ),
                     ),
                   ),
                 ),

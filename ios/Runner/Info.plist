@@ -6,6 +6,10 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Will connects to your wristband over Bluetooth to read your heart rate, oxygen, temperature, and activity.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Will connects to your wristband over Bluetooth to read your heart rate, oxygen, temperature, and activity.</string>
 	<key>CFBundleDisplayName</key>
 	<string>Will</string>
 	<key>CFBundleExecutable</key>

@@ -4,9 +4,12 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
 import 'core/constants.dart';
+import 'core/router/router.dart';
 import 'core/theme.dart';
 import 'firebase_options.dart';
-import 'view/auth/auth_gate.dart';
+import 'services/sync_service.dart';
+import 'services/wearable_service.dart';
+import 'view/auth/auth_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +17,9 @@ Future<void> main() async {
     Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform),
     GetStorage.init(),
   ]);
+  Get.put(AuthController(), permanent: true);
+  Get.put(WearableService(), permanent: true);
+  Get.put(SyncService(), permanent: true).start();
   runApp(const WillApp());
 }
 
@@ -22,11 +28,11 @@ class WillApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
+    return MaterialApp.router(
       title: WillConstants.appName,
       theme: WillTheme.appTheme,
       debugShowCheckedModeBanner: false,
-      home: const AuthGate(),
+      routerConfig: WillRouter.router,
     );
   }
 }

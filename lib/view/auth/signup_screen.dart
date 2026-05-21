@@ -1,8 +1,11 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/colors.dart';
+import '../../core/router/routes.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';
 import 'auth_controller.dart';
@@ -29,6 +32,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _submit(AuthController controller) async {
+    if (_name.text.trim().isEmpty) {
+      controller.lastError.value = 'Please enter your name.';
+      return;
+    }
     if (_email.text.trim().isEmpty || _password.text.length < 8) {
       controller.lastError.value =
           'Use a valid email and a password with at least 8 characters.';
@@ -39,19 +46,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
       _password.text,
       name: _name.text,
     );
-    if (ok && mounted) Get.back();
+    if (ok && mounted) context.go(WillRoutes.deviceSetup);
   }
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<AuthController>();
     return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Get.back(),
-        ),
-      ),
+      appBar: AppBar(),
       body: SafeArea(
         child: AutofillGroup(
           child: ListView(
@@ -60,7 +62,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const Text(
                 'Create your account.',
                 style: TextStyle(
-                  fontSize: 32,
+                  fontSize: 30,
                   fontWeight: FontWeight.w700,
                   height: 1.05,
                   color: WillColors.textPrimary,
@@ -74,13 +76,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   color: WillColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 36),
+              const SizedBox(height: 32),
               WillTextField(
                 controller: _name,
                 label: 'Your name',
                 hint: 'Ada',
                 textInputAction: TextInputAction.next,
+                textCapitalization: TextCapitalization.words,
                 autofillHints: const [AutofillHints.givenName],
+                onChanged: (_) {
+                  if (controller.lastError.value != null) {
+                    controller.lastError.value = null;
+                  }
+                },
               ),
               const SizedBox(height: 16),
               WillTextField(
@@ -90,6 +98,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
                 autofillHints: const [AutofillHints.newUsername],
+                onChanged: (_) {
+                  if (controller.lastError.value != null) {
+                    controller.lastError.value = null;
+                  }
+                },
               ),
               const SizedBox(height: 16),
               WillTextField(
@@ -100,33 +113,43 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 textInputAction: TextInputAction.done,
                 autofillHints: const [AutofillHints.newPassword],
                 onSubmitted: (_) => _submit(controller),
+                onChanged: (_) {
+                  if (controller.lastError.value != null) {
+                    controller.lastError.value = null;
+                  }
+                },
                 suffix: IconButton(
                   onPressed: () =>
                       setState(() => _showPassword = !_showPassword),
                   icon: Icon(
                     _showPassword
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
+                        ? CupertinoIcons.eye_slash
+                        : CupertinoIcons.eye,
                     color: WillColors.textSecondary,
-                    size: 20,
+                    size: 18,
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               Obx(() {
                 final err = controller.lastError.value;
-                if (err == null) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14),
-                  child: Text(
-                    err,
-                    style: const TextStyle(
-                      color: WillColors.danger,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ).animate().fadeIn(duration: 180.ms);
+                return AnimatedSize(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutQuart,
+                  child: err == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Text(
+                            err,
+                            style: const TextStyle(
+                              color: WillColors.danger,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ).animate().fadeIn(duration: 160.ms),
+                );
               }),
               Obx(
                 () => WillPrimaryButton(
