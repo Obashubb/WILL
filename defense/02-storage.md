@@ -59,11 +59,19 @@ Imagine the wearable sends a new heart-rate reading of 78 bpm:
 4. A timer fires every 60 seconds. It picks up all readings since the last upload, packs them into one Firestore document, writes it under `users/{uid}/readings/{hourId}`, then clears the local "to-upload" queue.
 5. If the user has no internet, step 4 fails silently. The queue grows. When internet returns, the next timer tick uploads the backlog.
 
+## Current state
+
+- `get_storage` holds `app.user`, `device.seenSetup`, `device.pairedId`, `samples.recent` (last 24 h of readings), and `samples.pending` (queue waiting to upload).
+- `flutter_secure_storage` is wired in but not yet writing anything custom — the Firebase Auth SDK handles token storage internally.
+- `SyncService` runs every 60 seconds, groups pending samples by hour, and writes them under `users/{uid}/readings/{hourId}` with `FieldValue.arrayUnion` so retries are safe.
+- Guest users have no Firebase uid — `SyncService` notices and skips. Their data lives only on the phone.
+
 ## Where to look
 
-- `pubspec.yaml` — confirms `get_storage`, `flutter_secure_storage`, and (planned) `cloud_firestore` are listed.
-- `lib/services/storage_service.dart` — planned location of the local-cache wrapper.
-- `lib/services/sync_service.dart` — planned location of the batched cloud uploader.
+- `pubspec.yaml` — confirms `get_storage`, `flutter_secure_storage`, `cloud_firestore`.
+- `lib/services/profile_service.dart` — local user profile + onboarding flags.
+- `lib/services/samples_repository.dart` — recent-history cache + upload queue.
+- `lib/services/sync_service.dart` — the batched uploader.
 
 ## Further reading
 

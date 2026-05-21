@@ -17,7 +17,8 @@ WILL is a health-monitoring app for sickle cell patients. A wristband (ESP32-C3)
 | Platforms | Android + iOS | Flutter — both for free |
 | App name | WILL | Package id stays `healthapp` for now |
 | Firebase project id | `will-wristband` | Created under `wisdomiyamu@gmail.com` |
-| State management | **GetX** | Mirrors `sanga_mobile`; routing + state in one package |
+| State management | **GetX** (controllers + Rx + Obx only — no `GetMaterialApp`, no `Get.to`) | Lightweight reactive primitives without dragging in another router |
+| Navigation | **`go_router`** with declarative redirect for the auth/onboarding gate | Decouples routing from state; same pattern as sigma_notes / syncc |
 | Storage (cloud) | **Firebase** (Auth + Firestore + FCM) | No custom backend |
 | Storage (local) | `get_storage` for KV, `flutter_secure_storage` for tokens | Already added |
 | ML location | **On-device** (Random Forest) | Tiny model, offline, private |
@@ -61,16 +62,16 @@ Three layers:
 - Local font: FormaDJR (all weights + italics)
 
 ### Added since Phase 2
-- `firebase_core`, `firebase_auth`, `cloud_firestore`
+- `firebase_core`, `firebase_auth`, `cloud_firestore` (Phase 2)
+- `go_router` (Phase 2 refactor)
+- `flutter_blue_plus`, `permission_handler` (Phase 3)
+- `fl_chart` (Phase 4)
 
 ### To be added
 | Package | Purpose | Phase |
 |---|---|---|
 | `firebase_messaging` | Push notifications | 6 |
-| `flutter_blue_plus` | BLE peripheral comms | 3 |
-| `permission_handler` | Bluetooth + notification perms | 3 |
 | `flutter_local_notifications` | Med / hydration reminders (offline) | 6 |
-| `fl_chart` *(or similar)* | History trend lines | 4 |
 
 ### Deliberately skipped
 `riverpod`, `dio`, `go_router`, `firebase_crashlytics`, `tflite_flutter` — not needed for this scope.
@@ -184,9 +185,9 @@ Each phase ends with something runnable. Each can be paused or reordered.
 | **0. Foundation** | Project structure, fonts, theme, core packages, PRDs | Already complete | ✅ |
 | **1. Navigation shell** | `HomeShell` with bottom nav + five empty themed screens | Unlocks visual iteration | ✅ |
 | **2. Firebase setup** | Project `will-wristband` created, FlutterFire wired, Auth + Firestore enabled, login / signup screens | Backend ready before BLE | ✅ |
-| **3. BLE integration** | `WearableService`, mock mode toggle, Dashboard live with real-or-fake data | Hardware-agnostic UI build | ⏳ next |
-| **4. Local cache + sync** | Samples persisted locally, batched to Firestore, offline-first | History becomes real | ⏳ |
-| **5. ML inference** | Random Forest trained, exported, embedded, `InferenceService` produces labels | Insights tab becomes real | ⏳ |
+| **3. BLE integration** | `WearableService`, mock mode toggle, Dashboard live with real-or-fake data | Hardware-agnostic UI build | ✅ |
+| **4. Local cache + sync** | Samples persisted locally, batched to Firestore, offline-first | History becomes real | ✅ |
+| **5. ML inference** | Random Forest trained, exported, embedded, `InferenceService` produces labels | Insights tab becomes real | ⏳ next |
 | **6. Reminders** | Local notifications for hydration + medication; FCM only if needed | Care tab becomes real | ⏳ |
 | **7. Polish** | `/impeccable shape` → `craft` → `polish` per module | After structure is locked | ⏳ |
 | **8. Harden** *(optional)* | Firestore security rules, error states, edge cases | Pre-defence | ⏳ |
