@@ -1,6 +1,12 @@
 import 'package:flutter/cupertino.dart';
+import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/colors.dart';
+import '../../models/health_sample.dart';
+import '../../services/wearable_service.dart';
+import '../auth/auth_controller.dart';
+import 'metric_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -11,44 +17,71 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen>
     with AutomaticKeepAliveClientMixin {
-  final String userName = 'Ada';
-  final bool isConnected = true;
-
   @override
   bool get wantKeepAlive => true;
+
+  String _greeting(DateTime now) {
+    if (now.hour < 12) return 'Good morning';
+    if (now.hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-      children: [
-        _GreetingBlock(userName: userName, isConnected: isConnected),
-        const SizedBox(height: 32),
-        const _SectionLabel(
-          title: 'Live Health Overview',
-          trailing: 'Last updated 16:13',
-        ),
-      ],
-    );
+    final auth = Get.find<AuthController>();
+    final wearable = Get.find<WearableService>();
+
+    return Obx(() {
+      final firstName = auth.user.value?.firstName ?? '';
+      final greeting = _greeting(DateTime.now());
+      final state = wearable.connectionState.value;
+      final sample = wearable.latestSample.value;
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+        children: [
+          _GreetingBlock(
+            greeting: greeting,
+            firstName: firstName,
+            state: state,
+          ),
+          const SizedBox(height: 28),
+          _SectionLabel(
+            title: 'Live health overview',
+            trailing: sample == null
+                ? 'Waiting for data'
+                : 'Updated ${DateFormat.Hm().format(sample.timestamp)}',
+          ),
+          const SizedBox(height: 14),
+          _MetricsGrid(sample: sample),
+        ],
+      );
+    });
   }
 }
 
 class _GreetingBlock extends StatelessWidget {
-  const _GreetingBlock({required this.userName, required this.isConnected});
+  const _GreetingBlock({
+    required this.greeting,
+    required this.firstName,
+    required this.state,
+  });
 
-  final String userName;
-  final bool isConnected;
+  final String greeting;
+  final String firstName;
+  final WearableConnectionState state;
 
   @override
   Widget build(BuildContext context) {
+    final headline =
+        firstName.isEmpty ? '$greeting.' : '$greeting, $firstName.';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ConnectionPill(isConnected: isConnected),
+        _ConnectionPill(state: state),
         const SizedBox(height: 18),
         Text(
-          'Good morning, $userName.',
+          headline,
           style: const TextStyle(
             fontSize: 30,
             fontWeight: FontWeight.w700,
@@ -57,9 +90,9 @@ class _GreetingBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Your band is reading your vitals.',
-          style: TextStyle(
+        Text(
+          _subtitleFor(state),
+          style: const TextStyle(
             fontSize: 14,
             color: WillColors.textSecondary,
           ),
@@ -67,23 +100,39 @@ class _GreetingBlock extends StatelessWidget {
       ],
     );
   }
+
+  String _subtitleFor(WearableConnectionState s) {
+    switch (s) {
+      case WearableConnectionState.connected:
+        return 'Your band is reading your vitals.';
+      case WearableConnectionState.scanning:
+        return 'Looking for your band…';
+      case WearableConnectionState.connecting:
+        return 'Connecting to your band…';
+      case WearableConnectionState.disconnected:
+        return 'Reconnecting to your band…';
+      case WearableConnectionState.error:
+        return 'Tap the band icon in Profile to retry.';
+      case WearableConnectionState.idle:
+        return 'No band paired yet. Set one up in Profile.';
+    }
+  }
 }
 
 class _ConnectionPill extends StatelessWidget {
-  const _ConnectionPill({required this.isConnected});
+  const _ConnectionPill({required this.state});
 
-  final bool isConnected;
+  final WearableConnectionState state;
 
   @override
   Widget build(BuildContext context) {
-    final color = isConnected ? WillColors.accent : WillColors.danger;
-    final label = isConnected ? 'Connected' : 'Offline';
+    final spec = _specFor(state);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
+        color: spec.color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        border: Border.all(color: spec.color.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -91,18 +140,16 @@ class _ConnectionPill extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration:
+                BoxDecoration(color: spec.color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
-          Icon(CupertinoIcons.bluetooth, color: color, size: 14),
+          Icon(CupertinoIcons.bluetooth, color: spec.color, size: 14),
           const SizedBox(width: 6),
           Text(
-            label,
+            spec.label,
             style: TextStyle(
-              color: color,
+              color: spec.color,
               fontWeight: FontWeight.w600,
               fontSize: 12,
             ),
@@ -110,6 +157,22 @@ class _ConnectionPill extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  ({Color color, String label}) _specFor(WearableConnectionState s) {
+    switch (s) {
+      case WearableConnectionState.connected:
+        return (color: WillColors.accent, label: 'Connected');
+      case WearableConnectionState.scanning:
+      case WearableConnectionState.connecting:
+        return (color: WillColors.warning, label: 'Connecting');
+      case WearableConnectionState.disconnected:
+        return (color: WillColors.warning, label: 'Reconnecting');
+      case WearableConnectionState.error:
+        return (color: WillColors.danger, label: 'Offline');
+      case WearableConnectionState.idle:
+        return (color: WillColors.textSecondary, label: 'No band');
+    }
   }
 }
 
@@ -143,5 +206,65 @@ class _SectionLabel extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _MetricsGrid extends StatelessWidget {
+  const _MetricsGrid({required this.sample});
+
+  final HealthSample? sample;
+
+  @override
+  Widget build(BuildContext context) {
+    final hr = sample?.heartRate.toString() ?? '--';
+    final spo2 = sample?.spo2.toString() ?? '--';
+    final temp = sample?.temperature.toStringAsFixed(1) ?? '--';
+    final motion = sample == null ? '--' : _motionLabel(sample!.motion);
+
+    return GridView.count(
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      childAspectRatio: 1.55,
+      children: [
+        MetricCard(
+          label: 'Heart rate',
+          value: hr,
+          unit: 'bpm',
+          icon: CupertinoIcons.heart_fill,
+          accent: WillColors.danger,
+        ),
+        MetricCard(
+          label: 'Oxygen',
+          value: spo2,
+          unit: '%',
+          icon: CupertinoIcons.drop_fill,
+          accent: WillColors.action,
+        ),
+        MetricCard(
+          label: 'Temperature',
+          value: temp,
+          unit: '°C',
+          icon: CupertinoIcons.thermometer,
+          accent: WillColors.warning,
+        ),
+        MetricCard(
+          label: 'Activity',
+          value: motion,
+          unit: '',
+          icon: CupertinoIcons.flame_fill,
+          accent: WillColors.accent,
+        ),
+      ],
+    );
+  }
+
+  String _motionLabel(double m) {
+    if (m < 0.1) return 'Rest';
+    if (m < 0.3) return 'Low';
+    if (m < 0.6) return 'Active';
+    return 'High';
   }
 }

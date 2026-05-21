@@ -39,9 +39,10 @@ class WillPrimaryButton extends StatelessWidget {
                 ? const SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(
+                    child: CircularProgressIndicator.adaptive(
                       strokeWidth: 2.2,
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      backgroundColor: Colors.white,
                     ),
                   )
                 : Text(
