@@ -1,4 +1,4 @@
-package ayininuola.com.healthapp
+package com.blessing.will
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790048603590",
+    "project_id": "will-wristband",
+    "storage_bucket": "will-wristband.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790048603590:android:6d82783fe586839d2246c7",
+        "android_client_info": {
+          "package_name": "com.blessing.will"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCVfo-gbAG7sjkSrz5-y22mYQ98qJRrPLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
