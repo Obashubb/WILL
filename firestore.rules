@@ -1,0 +1,42 @@
+// Firestore security rules for the WILL app.
+//
+// HOW TO DEPLOY
+// -------------
+// Once Cloud Firestore is enabled in the console:
+//   firebase use will-wristband
+//   firebase deploy --only firestore:rules
+//
+// Until these are deployed, Firestore is in *test mode* — which means
+// anyone can read or write anything for the first 30 days. Deploy this
+// file before that grace period expires, and definitely before any
+// production-like data lands in the database.
+//
+// SHAPE OF OUR DATA
+// -----------------
+// /users/{uid}                       — profile metadata (name, createdAt)
+// /users/{uid}/readings/{hourId}     — batched sensor samples for one hour
+// /users/{uid}/insights/{insightId}  — outputs from the on-device ML model
+// /users/{uid}/care/{eventId}        — hydration + medication logs
+//
+// The rule of thumb: a signed-in user can read and write ANY document
+// whose path begins with their own uid, and nothing else. No public reads,
+// no cross-user access. Guests do not sync to Firestore at all (they have
+// no Firebase uid).
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default: deny everything that isn't explicitly allowed below.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // A user can read and write only their own subtree.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+  }
+}
