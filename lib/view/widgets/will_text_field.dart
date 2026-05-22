@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/colors.dart';
+import 'will_primary_button.dart' show kFormMaxWidth;
 
 class WillTextField extends StatelessWidget {
   const WillTextField({
@@ -39,6 +40,16 @@ class WillTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kFormMaxWidth),
+        child: _buildField(),
+      ),
+    );
+  }
+
+  Widget _buildField() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

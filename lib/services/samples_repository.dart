@@ -20,13 +20,8 @@ class SamplesRepository {
 
   // -- Recent (history) --------------------------------------------------
 
-  static List<HealthSample> readRecent() {
-    final raw = _box.read<List>(_recentKey);
-    if (raw == null) return const [];
-    return raw
-        .map((e) => HealthSample.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
-  }
+  static List<HealthSample> readRecent() => _safeReadList(_recentKey,
+      (m) => HealthSample.fromJson(m));
 
   static Future<void> appendRecent(HealthSample sample) async {
     final list = readRecent()..add(sample);
@@ -37,15 +32,15 @@ class SamplesRepository {
 
   static Future<void> clearRecent() => _box.remove(_recentKey);
 
+  /// Replace the entire recent-history list. Used by [DemoDataService] to
+  /// seed a believable backlog before a demo.
+  static Future<void> replaceRecent(List<HealthSample> samples) =>
+      _box.write(_recentKey, samples.map((s) => s.toJson()).toList());
+
   // -- Pending (upload queue) --------------------------------------------
 
-  static List<HealthSample> readPending() {
-    final raw = _box.read<List>(_pendingKey);
-    if (raw == null) return const [];
-    return raw
-        .map((e) => HealthSample.fromJson(Map<String, dynamic>.from(e as Map)))
-        .toList();
-  }
+  static List<HealthSample> readPending() => _safeReadList(_pendingKey,
+      (m) => HealthSample.fromJson(m));
 
   static Future<void> enqueuePending(HealthSample sample) async {
     final list = readPending()..add(sample);
@@ -64,5 +59,25 @@ class SamplesRepository {
   static Future<void> clearAll() async {
     await _box.remove(_recentKey);
     await _box.remove(_pendingKey);
+  }
+
+  /// Reads a list of serialized maps, skipping any entry that can't be
+  /// decoded. Keeps the app working even if a stale or corrupted record
+  /// landed in storage.
+  static List<T> _safeReadList<T>(
+    String key,
+    T Function(Map<String, dynamic>) decoder,
+  ) {
+    final out = <T>[];
+    final raw = _box.read<List>(key);
+    if (raw == null) return out;
+    for (final e in raw) {
+      try {
+        out.add(decoder(Map<String, dynamic>.from(e as Map)));
+      } catch (_) {
+        // Skip corrupted entry.
+      }
+    }
+    return out;
   }
 }

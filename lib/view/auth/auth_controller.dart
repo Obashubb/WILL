@@ -5,6 +5,8 @@ import 'package:get/get.dart';
 
 import '../../models/app_user.dart';
 import '../../services/auth_service.dart';
+import '../../services/care_repository.dart';
+import '../../services/notification_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/samples_repository.dart';
 
@@ -111,6 +113,8 @@ class AuthController extends GetxController {
     await Future.wait([
       ProfileService.clearAll(),
       SamplesRepository.clearAll(),
+      CareRepository.clearAll(),
+      NotificationService.cancelAll(),
     ]);
     user.value = null;
   }

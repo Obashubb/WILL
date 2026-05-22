@@ -19,6 +19,20 @@ enum WearableConnectionState {
   error,
 }
 
+/// Controls what kind of synthetic samples [WearableService] emits in mock
+/// mode. Switch this from the Demo Data sheet to drive the Insights tab
+/// through every label without needing real hardware.
+enum MockScenario {
+  normal('Normal'),
+  stress('Stress'),
+  dehydration('Dehydration'),
+  abnormalOxygen('Low oxygen'),
+  crisis('Crisis');
+
+  const MockScenario(this.label);
+  final String label;
+}
+
 class WearableService extends GetxController {
   final Rx<WearableConnectionState> connectionState =
       WearableConnectionState.idle.obs;
@@ -29,6 +43,10 @@ class WearableService extends GetxController {
   /// Mock mode is on while the hardware is still being built. Toggle off
   /// when the firmware is flashed and a real Will Band is in range.
   final RxBool mockMode = true.obs;
+
+  /// Active scenario when mock mode is on. Drives the parameter ranges
+  /// inside [_emitMock].
+  final Rx<MockScenario> mockScenario = MockScenario.normal.obs;
 
   Timer? _mockTimer;
   StreamSubscription<List<ScanResult>>? _scanSub;
@@ -92,16 +110,16 @@ class WearableService extends GetxController {
   }
 
   void _emitMock() {
-    final prev = latestSample.value;
-    final hrBase = prev?.heartRate ?? 78;
-    final spo2Base = prev?.spo2 ?? 97;
-    final tempBase = prev?.temperature ?? 36.7;
-
-    final hr = (hrBase + _rng.nextInt(7) - 3).clamp(55, 110);
-    final spo2 = (spo2Base + _rng.nextInt(3) - 1).clamp(93, 100);
-    final temp =
-        (tempBase + (_rng.nextDouble() - 0.5) * 0.1).clamp(36.2, 37.4);
-    final motion = _rng.nextDouble() * 0.4;
+    final spec = _scenarioSpec(mockScenario.value);
+    final hr = (spec.hrCenter + _rng.nextInt(spec.hrJitter * 2 + 1) - spec.hrJitter)
+        .clamp(45, 160);
+    final spo2 = (spec.spo2Center + _rng.nextInt(spec.spo2Jitter * 2 + 1) - spec.spo2Jitter)
+        .clamp(80, 100);
+    final temp = (spec.tempCenter + (_rng.nextDouble() - 0.5) * spec.tempJitter)
+        .clamp(35.0, 39.0);
+    final motion = (spec.motionFloor +
+            _rng.nextDouble() * (spec.motionCeil - spec.motionFloor))
+        .clamp(0.0, 1.0);
 
     _publish(HealthSample(
       heartRate: hr,
@@ -110,6 +128,46 @@ class WearableService extends GetxController {
       motion: double.parse(motion.toStringAsFixed(2)),
       timestamp: DateTime.now(),
     ));
+  }
+
+  _ScenarioSpec _scenarioSpec(MockScenario s) {
+    switch (s) {
+      case MockScenario.normal:
+        return const _ScenarioSpec(
+          hrCenter: 76, hrJitter: 5,
+          spo2Center: 97, spo2Jitter: 1,
+          tempCenter: 36.7, tempJitter: 0.2,
+          motionFloor: 0.0, motionCeil: 0.3,
+        );
+      case MockScenario.stress:
+        return const _ScenarioSpec(
+          hrCenter: 110, hrJitter: 6,
+          spo2Center: 96, spo2Jitter: 1,
+          tempCenter: 36.9, tempJitter: 0.2,
+          motionFloor: 0.0, motionCeil: 0.05,
+        );
+      case MockScenario.dehydration:
+        return const _ScenarioSpec(
+          hrCenter: 95, hrJitter: 4,
+          spo2Center: 96, spo2Jitter: 1,
+          tempCenter: 37.5, tempJitter: 0.3,
+          motionFloor: 0.0, motionCeil: 0.04,
+        );
+      case MockScenario.abnormalOxygen:
+        return const _ScenarioSpec(
+          hrCenter: 96, hrJitter: 6,
+          spo2Center: 90, spo2Jitter: 2,
+          tempCenter: 36.9, tempJitter: 0.2,
+          motionFloor: 0.0, motionCeil: 0.2,
+        );
+      case MockScenario.crisis:
+        return const _ScenarioSpec(
+          hrCenter: 122, hrJitter: 7,
+          spo2Center: 88, spo2Jitter: 2,
+          tempCenter: 38.0, tempJitter: 0.4,
+          motionFloor: 0.0, motionCeil: 0.05,
+        );
+    }
   }
 
   /// Single funnel for every new sample: live UI, recent-history cache,
@@ -243,4 +301,25 @@ class WearableService extends GetxController {
     _readingsChar = null;
     _commandsChar = null;
   }
+}
+
+class _ScenarioSpec {
+  const _ScenarioSpec({
+    required this.hrCenter,
+    required this.hrJitter,
+    required this.spo2Center,
+    required this.spo2Jitter,
+    required this.tempCenter,
+    required this.tempJitter,
+    required this.motionFloor,
+    required this.motionCeil,
+  });
+  final int hrCenter;
+  final int hrJitter;
+  final int spo2Center;
+  final int spo2Jitter;
+  final double tempCenter;
+  final double tempJitter;
+  final double motionFloor;
+  final double motionCeil;
 }

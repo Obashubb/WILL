@@ -5,7 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/colors.dart';
 import '../../core/router/routes.dart';
 import '../widgets/will_inkwell.dart';
-import '../widgets/will_primary_button.dart';
+import '../widgets/will_primary_button.dart' show WillPrimaryButton, kFormMaxWidth;
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -87,22 +87,29 @@ class _OutlinedAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton(
-        onPressed: onPressed,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: WillColors.primary, width: 1.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          padding: EdgeInsets.zero,
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: WillColors.primary,
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kFormMaxWidth),
+        child: SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: OutlinedButton(
+            onPressed: onPressed,
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: WillColors.primary, width: 1.4),
+              shape:
+                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              padding: EdgeInsets.zero,
+            ),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: WillColors.primary,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ),
       ),

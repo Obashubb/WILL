@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/colors.dart';
+import '../widgets/animated_number.dart';
 
 class MetricCard extends StatelessWidget {
   const MetricCard({
@@ -10,14 +11,18 @@ class MetricCard extends StatelessWidget {
     required this.unit,
     required this.icon,
     required this.accent,
+    this.format,
+    this.fallback = '--',
     this.note,
   });
 
   final String label;
-  final String value;
+  final double? value;
   final String unit;
   final IconData icon;
   final Color accent;
+  final String Function(double)? format;
+  final String fallback;
   final String? note;
 
   @override
@@ -65,8 +70,10 @@ class MetricCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                value,
+              AnimatedNumber(
+                value: value,
+                format: format,
+                placeholder: fallback,
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,

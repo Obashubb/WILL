@@ -2,6 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../core/colors.dart';
 
+/// Form widgets cap their width on tablets / large displays so a 500-pt
+/// button doesn't stretch all the way across a 1024-pt iPad screen. On
+/// phones the constraint is wider than the available space, so it just
+/// fills like before.
+const double kFormMaxWidth = 500;
+
 class WillPrimaryButton extends StatelessWidget {
   const WillPrimaryButton({
     super.key,
@@ -57,6 +63,14 @@ class WillPrimaryButton extends StatelessWidget {
         ),
       ),
     );
-    return fullWidth ? SizedBox(width: double.infinity, child: button) : button;
+    return Align(
+      alignment: Alignment.center,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: kFormMaxWidth),
+        child: fullWidth
+            ? SizedBox(width: double.infinity, child: button)
+            : button,
+      ),
+    );
   }
 }

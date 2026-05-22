@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
@@ -6,6 +7,7 @@ import '../../core/colors.dart';
 import '../../models/health_sample.dart';
 import '../../services/wearable_service.dart';
 import '../auth/auth_controller.dart';
+import '../widgets/will_inkwell.dart';
 import 'metric_card.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -53,6 +55,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                 : 'Updated ${DateFormat.Hm().format(sample.timestamp)}',
           ),
           const SizedBox(height: 14),
+          if (state == WearableConnectionState.idle) ...[
+            _NoBandBanner(onPair: () => wearable.startPairing()),
+            const SizedBox(height: 14),
+          ],
           _MetricsGrid(sample: sample),
         ],
       );
@@ -90,11 +96,17 @@ class _GreetingBlock extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        Text(
-          _subtitleFor(state),
-          style: const TextStyle(
-            fontSize: 14,
-            color: WillColors.textSecondary,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 240),
+          switchInCurve: Curves.easeOutQuart,
+          switchOutCurve: Curves.easeOutQuart,
+          child: Text(
+            _subtitleFor(state),
+            key: ValueKey(state),
+            style: const TextStyle(
+              fontSize: 14,
+              color: WillColors.textSecondary,
+            ),
           ),
         ),
       ],
@@ -114,7 +126,7 @@ class _GreetingBlock extends StatelessWidget {
       case WearableConnectionState.error:
         return 'Tap the band icon in Profile to retry.';
       case WearableConnectionState.idle:
-        return 'No band paired yet. Set one up in Profile.';
+        return 'No band paired yet.';
     }
   }
 }
@@ -127,34 +139,40 @@ class _ConnectionPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final spec = _specFor(state);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: spec.color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: spec.color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration:
-                BoxDecoration(color: spec.color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Icon(CupertinoIcons.bluetooth, color: spec.color, size: 14),
-          const SizedBox(width: 6),
-          Text(
-            spec.label,
-            style: TextStyle(
-              color: spec.color,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutQuart,
+      switchOutCurve: Curves.easeOutQuart,
+      child: Container(
+        key: ValueKey(state),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: spec.color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: spec.color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 6,
+              height: 6,
+              decoration:
+                  BoxDecoration(color: spec.color, shape: BoxShape.circle),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            Icon(CupertinoIcons.bluetooth, color: spec.color, size: 14),
+            const SizedBox(width: 6),
+            Text(
+              spec.label,
+              style: TextStyle(
+                color: spec.color,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -209,6 +227,63 @@ class _SectionLabel extends StatelessWidget {
   }
 }
 
+class _NoBandBanner extends StatelessWidget {
+  const _NoBandBanner({required this.onPair});
+
+  final VoidCallback onPair;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: WillColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: WillColors.border.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            CupertinoIcons.bluetooth,
+            size: 18,
+            color: WillColors.textSecondary.withValues(alpha: 0.8),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'No band paired. Pair one to see live readings.',
+              style: TextStyle(
+                fontSize: 13,
+                color: WillColors.textPrimary,
+                height: 1.3,
+              ),
+            ),
+          ),
+          WillInkwell(
+            onTap: onPair,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              margin: const EdgeInsets.only(left: 8),
+              decoration: BoxDecoration(
+                color: WillColors.primary,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Text(
+                'Pair',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MetricsGrid extends StatelessWidget {
   const _MetricsGrid({required this.sample});
 
@@ -216,11 +291,6 @@ class _MetricsGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hr = sample?.heartRate.toString() ?? '--';
-    final spo2 = sample?.spo2.toString() ?? '--';
-    final temp = sample?.temperature.toStringAsFixed(1) ?? '--';
-    final motion = sample == null ? '--' : _motionLabel(sample!.motion);
-
     return GridView.count(
       crossAxisCount: 2,
       crossAxisSpacing: 12,
@@ -231,34 +301,42 @@ class _MetricsGrid extends StatelessWidget {
       children: [
         MetricCard(
           label: 'Heart rate',
-          value: hr,
+          value: sample?.heartRate.toDouble(),
           unit: 'bpm',
           icon: CupertinoIcons.heart_fill,
           accent: WillColors.danger,
         ),
         MetricCard(
           label: 'Oxygen',
-          value: spo2,
+          value: sample?.spo2.toDouble(),
           unit: '%',
           icon: CupertinoIcons.drop_fill,
           accent: WillColors.action,
         ),
         MetricCard(
           label: 'Temperature',
-          value: temp,
+          value: sample?.temperature,
+          format: (v) => v.toStringAsFixed(1),
           unit: '°C',
           icon: CupertinoIcons.thermometer,
           accent: WillColors.warning,
         ),
         MetricCard(
           label: 'Activity',
-          value: motion,
+          value: sample == null ? null : _scoreFor(sample!.motion),
+          format: (_) => sample == null ? '--' : _motionLabel(sample!.motion),
           unit: '',
           icon: CupertinoIcons.flame_fill,
           accent: WillColors.accent,
         ),
       ],
     );
+  }
+
+  double _scoreFor(double m) {
+    // Just a numeric trigger for the animation; the format string is what
+    // the user actually sees.
+    return m * 10;
   }
 
   String _motionLabel(double m) {
