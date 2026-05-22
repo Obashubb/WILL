@@ -66,12 +66,12 @@ Three layers:
 - `go_router` (Phase 2 refactor)
 - `flutter_blue_plus`, `permission_handler` (Phase 3)
 - `fl_chart` (Phase 4)
+- `flutter_local_notifications`, `timezone`, `flutter_timezone` (Phase 6)
 
 ### To be added
 | Package | Purpose | Phase |
 |---|---|---|
-| `firebase_messaging` | Push notifications | 6 |
-| `flutter_local_notifications` | Med / hydration reminders (offline) | 6 |
+| `firebase_messaging` | Push notifications (deferred — local notifications cover v1) | optional |
 
 ### Deliberately skipped
 `riverpod`, `dio`, `go_router`, `firebase_crashlytics`, `tflite_flutter` — not needed for this scope.
@@ -187,10 +187,10 @@ Each phase ends with something runnable. Each can be paused or reordered.
 | **2. Firebase setup** | Project `will-wristband` created, FlutterFire wired, Auth + Firestore enabled, login / signup screens | Backend ready before BLE | ✅ |
 | **3. BLE integration** | `WearableService`, mock mode toggle, Dashboard live with real-or-fake data | Hardware-agnostic UI build | ✅ |
 | **4. Local cache + sync** | Samples persisted locally, batched to Firestore, offline-first | History becomes real | ✅ |
-| **5. ML inference** | Random Forest trained, exported, embedded, `InferenceService` produces labels | Insights tab becomes real | ⏳ next |
-| **6. Reminders** | Local notifications for hydration + medication; FCM only if needed | Care tab becomes real | ⏳ |
-| **7. Polish** | `/impeccable shape` → `craft` → `polish` per module | After structure is locked | ⏳ |
-| **8. Harden** *(optional)* | Firestore security rules, error states, edge cases | Pre-defence | ⏳ |
+| **5. ML inference** | Random Forest trained, exported, embedded, `InferenceService` produces labels | Insights tab becomes real | ✅ |
+| **6. Reminders** | Local notifications for hydration + medication; FCM only if needed | Care tab becomes real | ✅ |
+| **7. Polish** | Animated values, real Profile content, no-band banner, action feedback | After structure is locked | ✅ |
+| **8. Harden** | Firestore security rules deployed, defensive reads, lazy notification perm, README, init failsafes | Pre-defence | ✅ |
 
 ---
 
