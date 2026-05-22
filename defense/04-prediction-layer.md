@@ -89,10 +89,20 @@ The Random Forest looks at these five numbers, walks through its decision trees,
 - Logs the insight to Firestore for history.
 - If confidence had been higher (say > 0.9) and the label was a crisis pattern, it would also vibrate the band and push a notification.
 
+## Current state
+
+- The model is loaded once at startup in `InferenceService.onInit()`.
+- A 30-second rolling buffer is maintained inside the service. As soon as it has at least 5 samples, it starts publishing insights.
+- Every new sample from `WearableService.latestSample` triggers a recomputation — tree walks are microseconds, so this stays cheap.
+- The latest insight is exposed as `Rxn<Insight>` and consumed by the Insights tab via `Obx`.
+
 ## Where to look
 
-- `lib/services/inference_service.dart` — planned location of the prediction pipeline.
-- `assets/ml/model.json` — planned location of the trained model (loaded at startup).
+- `lib/services/inference_service.dart` — pipeline (load → ingest → features → predict).
+- `lib/models/insight.dart` — `Insight`, `InsightFeatures`, `InsightLabel` enum + display copy + recommendations.
+- `assets/ml/model.json` — trained / hand-tuned Random Forest, loaded at startup.
+- `tools/train_model.py` — Python sklearn script that regenerates `model.json` once a labelled dataset exists.
+- `lib/view/insights/insights_screen.dart` — UI: status hero, "What we see" feature breakdown, recommendations.
 - `05-random-forest.md` — how the classifier itself works.
 
 ## Further reading
