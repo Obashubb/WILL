@@ -1,10 +1,10 @@
-# WILL — Product Requirements Document
+# WILL, Product Requirements Document
 
 **AI-Based Wearable Monitoring System for Sickle Cell Patients**
 
 > This document has two parts:
-> 1. **[Current PRD](#current-prd-with-cloud-backend)** — with cloud backend.
-> 2. **[Appendix A](#appendix-a-original-prd-without-cloud-backend)** — original PRD without cloud backend, kept for reference.
+> 1. **[Current PRD](#current-prd-with-cloud-backend)**, with cloud backend.
+> 2. **[Appendix A](#appendix-a-original-prd-without-cloud-backend)**, original PRD without cloud backend, kept for reference.
 
 ---
 
@@ -29,7 +29,7 @@
 10. [Expected capabilities](#10-expected-capabilities)
 11. [Limitations](#11-limitations)
 12. [Future improvements](#12-future-improvements)
-13. [Appendix A — Original PRD (no cloud backend)](#appendix-a-original-prd-without-cloud-backend)
+13. [Appendix A, Original PRD (no cloud backend)](#appendix-a-original-prd-without-cloud-backend)
 
 ---
 
@@ -282,7 +282,7 @@ The completed system should be capable of:
 
 ---
 
-## Appendix A — Original PRD (without cloud backend)
+## Appendix A, Original PRD (without cloud backend)
 
 > Earlier scope, kept for reference. The current PRD above supersedes it by adding the cloud backend layer.
 
@@ -347,15 +347,15 @@ Develop an intelligent wearable monitoring system capable of tracking vital sign
 
 **Mobile application**
 
-*Dashboard* — real-time sensor readings, device connection status, overall health summary.
+*Dashboard*, real-time sensor readings, device connection status, overall health summary.
 
-*History* — store and display previous readings, historical trends.
+*History*, store and display previous readings, historical trends.
 
-*Insights* — AI-generated health analysis, stress and hydration predictions, recommendations.
+*Insights*, AI-generated health analysis, stress and hydration predictions, recommendations.
 
-*Care section* — water intake, medication intake, reminders.
+*Care section*, water intake, medication intake, reminders.
 
-*Profile* — patient info, device management, app settings.
+*Profile*, patient info, device management, app settings.
 
 ### A.6 Non-functional requirements
 
