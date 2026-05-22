@@ -9,9 +9,9 @@ import '../models/medication.dart';
 /// Wraps flutter_local_notifications with the channels and IDs we use.
 ///
 /// Channels:
-///  * `meds`      — medication reminders, scheduled daily.
-///  * `hydration` — daily hydration nudge.
-///  * `alerts`    — fired immediately when the ML model flags a concerning
+///  * `meds`     , medication reminders, scheduled daily.
+///  * `hydration`, daily hydration nudge.
+///  * `alerts`   , fired immediately when the ML model flags a concerning
 ///                  pattern (low oxygen, possible stress, etc.).
 class NotificationService {
   NotificationService._();

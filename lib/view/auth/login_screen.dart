@@ -9,7 +9,7 @@ import '../../core/router/routes.dart';
 import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';
-import 'auth_controller.dart';
+import '../../controllers/auth_controller.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -106,7 +106,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 4),
               Obx(() {
                 final err = controller.lastError.value;
                 return AnimatedSize(

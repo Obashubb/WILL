@@ -11,8 +11,8 @@ import 'services/inference_service.dart';
 import 'services/notification_service.dart';
 import 'services/sync_service.dart';
 import 'services/wearable_service.dart';
-import 'view/auth/auth_controller.dart';
-import 'view/care/care_controller.dart';
+import 'controllers/auth_controller.dart';
+import 'controllers/care_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,7 +21,7 @@ Future<void> main() async {
   await GetStorage.init();
 
   // Firebase and notifications can fail in some environments (offline
-  // emulator, missing entitlements). They are not catastrophic — the rest
+  // emulator, missing entitlements). They are not catastrophic, the rest
   // of the app still works with what's on disk.
   try {
     await Firebase.initializeApp(

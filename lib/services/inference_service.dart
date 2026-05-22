@@ -8,15 +8,25 @@ import 'package:get/get.dart';
 import '../core/ble_constants.dart';
 import '../models/health_sample.dart';
 import '../models/insight.dart';
+import '../models/user_baseline.dart';
+import 'insights_repository.dart';
 import 'notification_service.dart';
+import 'profile_service.dart';
 import 'wearable_service.dart';
 
 /// Runs the on-device Random Forest over a 30-second rolling window of
 /// samples and publishes the latest [Insight].
 ///
-/// The model itself lives in `assets/ml/model.json` and is loaded once at
-/// startup. Inference is a few microseconds of tree walking — cheap enough
-/// to re-run on every new sample.
+/// Side effects on each new insight:
+///  * `latestInsight` Rx is updated (drives the Insights tab live).
+///  * Watch + Act insights are persisted via [InsightsRepository] for the
+///    history timeline and queued for Firestore upload.
+///  * Act insights trigger band vibrate + system notification, debounced
+///    to one alert per label every 5 minutes.
+///
+/// In parallel, a [BaselineCalibrator] watches "calm" samples and commits
+/// an auto-learned [UserBaseline] to [ProfileService] after 24 h. Manual
+/// baselines (typed in by the user) are never overwritten.
 class InferenceService extends GetxService {
   static const String _modelAsset = 'assets/ml/model.json';
   static const Duration _windowLength = Duration(seconds: 30);
@@ -30,9 +40,18 @@ class InferenceService extends GetxService {
   final List<HealthSample> _window = [];
   StreamSubscription<HealthSample?>? _sub;
 
-  static const double _alertConfidence = 0.7;
   static const Duration _alertCooldown = Duration(minutes: 5);
+  static const Duration _persistHeartbeat = Duration(minutes: 5);
+
   final Map<InsightLabel, DateTime> _lastAlertAt = {};
+
+  /// Track the last insight we wrote to [InsightsRepository] so we can
+  /// persist only on transitions (label / severity change) or via the
+  /// heartbeat below. Prevents 30 calm entries per minute filling the log.
+  Insight? _lastPersisted;
+  DateTime? _lastPersistedAt;
+
+  final _BaselineCalibrator _calibrator = _BaselineCalibrator();
 
   @override
   void onInit() {
@@ -80,20 +99,49 @@ class InferenceService extends GetxService {
     if (_window.length < _minSamples) return;
     final insight = _predict();
     latestInsight.value = insight;
+    _calibrator.consider(sample, insight);
+    _persistIfChangedOrHeartbeat(insight);
     _maybeAlert(insight);
   }
 
+  /// Persist when the label or severity differs from the last persisted
+  /// insight, OR when [_persistHeartbeat] has elapsed since the last
+  /// write. Stops the log filling with 30 calm copies per minute while
+  /// still leaving long calm stretches visible as periodic markers.
+  void _persistIfChangedOrHeartbeat(Insight insight) {
+    final last = _lastPersisted;
+    final lastAt = _lastPersistedAt;
+    final changed = last == null ||
+        last.label != insight.label ||
+        last.severity != insight.severity;
+    final heartbeat =
+        lastAt == null || DateTime.now().difference(lastAt) >= _persistHeartbeat;
+    if (!changed && !heartbeat) return;
+    _lastPersisted = insight;
+    _lastPersistedAt = DateTime.now();
+    InsightsRepository.appendRecent(insight);
+    InsightsRepository.enqueuePending(insight);
+  }
+
+  /// Clear in-memory persister state. Called from AuthController on
+  /// sign-out so a fresh account starts with a clean slate.
+  void resetPersisterState() {
+    _lastPersisted = null;
+    _lastPersistedAt = null;
+    _lastAlertAt.clear();
+  }
+
   void _maybeAlert(Insight insight) {
-    if (!insight.isConcerning) return;
-    if (insight.confidence < _alertConfidence) return;
+    // Only Act severity fires the band buzz + system notification. Watch
+    // is signalled visually in-app only.
+    if (insight.severity != InsightSeverity.act) return;
     final last = _lastAlertAt[insight.label];
-    if (last != null && DateTime.now().difference(last) < _alertCooldown) return;
+    if (last != null && DateTime.now().difference(last) < _alertCooldown) {
+      return;
+    }
     _lastAlertAt[insight.label] = DateTime.now();
-    // Buzz the band on the wrist…
     final wearable = Get.find<WearableService>();
     wearable.sendCommand(WearableCommand.vibrate);
-    // …and surface a system notification so the user sees it even if the
-    // app is in the background.
     NotificationService.fireInsightAlert(
       title: insight.label.display,
       body: insight.label.narrative,
@@ -119,14 +167,16 @@ class InferenceService extends GetxService {
       if (votes[i] > votes[bestIndex]) bestIndex = i;
     }
 
+    final ts = DateTime.now();
     return Insight(
+      id: 'ins_${ts.microsecondsSinceEpoch}',
       label: _labels[bestIndex],
       confidence: votes[bestIndex],
       probs: {
         for (var i = 0; i < _labels.length; i++) _labels[i]: votes[i],
       },
       features: features,
-      timestamp: DateTime.now(),
+      timestamp: ts,
     );
   }
 
@@ -175,5 +225,58 @@ class InferenceService extends GetxService {
       motionVar: motionVar,
       sampleCount: n,
     );
+  }
+}
+
+/// Watches calm, still samples and quietly averages them into a per-user
+/// baseline. Commits to [ProfileService] once we have 1000 calm samples or
+/// 24 h has elapsed since calibration started.
+///
+/// Manual baselines (typed in by the user) are honoured forever, the
+/// calibrator checks `isManual` before writing.
+class _BaselineCalibrator {
+  static const int _minSamples = 1000;
+  static const Duration _maxDuration = Duration(hours: 24);
+  static const double _stillVarianceCeiling = 0.05;
+
+  DateTime? _startedAt;
+  int _count = 0;
+  double _hrSum = 0;
+  double _spo2Sum = 0;
+  double _tempSum = 0;
+  bool _committed = false;
+
+  void consider(HealthSample sample, Insight insight) {
+    final existing = ProfileService.readBaseline();
+    if (existing?.isManual == true) return; // Never overwrite manual.
+    if (_committed && existing != null) return;
+
+    final isCalm = insight.severity == InsightSeverity.calm &&
+        insight.features.motionVar < _stillVarianceCeiling;
+    if (!isCalm) return;
+
+    _startedAt ??= DateTime.now();
+    _hrSum += sample.heartRate;
+    _spo2Sum += sample.spo2;
+    _tempSum += sample.temperature;
+    _count += 1;
+
+    final elapsed = DateTime.now().difference(_startedAt!);
+    if (_count >= _minSamples || elapsed >= _maxDuration) {
+      _commit();
+    }
+  }
+
+  void _commit() {
+    if (_count == 0) return;
+    final baseline = UserBaseline(
+      restingHr: _hrSum / _count,
+      baselineSpo2: _spo2Sum / _count,
+      baselineTemp: _tempSum / _count,
+      learnedAt: DateTime.now(),
+      isManual: false,
+    );
+    ProfileService.writeBaseline(baseline);
+    _committed = true;
   }
 }

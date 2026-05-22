@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-import '../../models/hydration_entry.dart';
-import '../../models/medication.dart';
-import '../../services/care_repository.dart';
-import '../../services/notification_service.dart';
+import '../models/hydration_entry.dart';
+import '../models/medication.dart';
+import '../services/care_repository.dart';
+import '../services/notification_service.dart';
 
 class CareController extends GetxController {
   final RxList<HydrationEntry> hydrationToday = <HydrationEntry>[].obs;
@@ -60,7 +60,7 @@ class CareController extends GetxController {
   Future<void> saveMedication(Medication med) async {
     await CareRepository.saveMedication(med);
     // Make sure we have notification permission before scheduling. If the
-    // user denies it, the medication still saves — they just won't see a
+    // user denies it, the medication still saves, they just won't see a
     // reminder until they grant it later.
     await NotificationService.requestPermission();
     await NotificationService.scheduleMedicationReminders(med);

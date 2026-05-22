@@ -7,7 +7,7 @@ import '../../models/medication.dart';
 import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';
-import 'care_controller.dart';
+import '../../controllers/care_controller.dart';
 
 class AddMedicationSheet extends StatefulWidget {
   const AddMedicationSheet({super.key});

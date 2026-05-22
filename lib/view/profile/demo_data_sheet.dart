@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import '../../core/colors.dart';
 import '../../services/demo_data_service.dart';
 import '../../services/wearable_service.dart';
-import '../care/care_controller.dart';
+import '../../controllers/care_controller.dart';
 import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 
@@ -155,6 +155,19 @@ class _DemoDataSheetState extends State<DemoDataSheet> {
                           () async {
                             await DemoDataService.seedHydrationDay();
                             care.refreshAll();
+                          },
+                        ),
+              ),
+              _SeedRow(
+                icon: CupertinoIcons.sparkles,
+                label: 'Sample insights',
+                hint: 'Six Watch/Act events spread across today.',
+                onTap: _busy
+                    ? null
+                    : () => _run(
+                          'insights',
+                          () async {
+                            await DemoDataService.seedInsights();
                           },
                         ),
               ),

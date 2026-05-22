@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
 import '../models/health_sample.dart';
+import 'insights_repository.dart';
 import 'samples_repository.dart';
 
 /// Periodic batched uploader for sensor readings.
@@ -45,12 +46,26 @@ class SyncService extends GetxService {
   Future<void> flushNow() async {
     if (_flushing) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return; // guest — nothing to sync.
-
-    final pending = SamplesRepository.readPending();
-    if (pending.isEmpty) return;
+    if (uid == null) return; // guest, nothing to sync.
 
     _flushing = true;
+    try {
+      await _flushReadings(uid);
+      await _flushInsights(uid);
+      lastSyncedAt.value = DateTime.now();
+      lastError.value = null;
+      isOnline.value = true;
+    } catch (e) {
+      lastError.value = e.toString();
+      isOnline.value = false;
+    } finally {
+      _flushing = false;
+    }
+  }
+
+  Future<void> _flushReadings(String uid) async {
+    final pending = SamplesRepository.readPending();
+    if (pending.isEmpty) return;
     try {
       final byHour = <String, List<HealthSample>>{};
       for (final s in pending) {
@@ -73,15 +88,35 @@ class SyncService extends GetxService {
       }
 
       await SamplesRepository.removePending(pending);
-      lastSyncedAt.value = DateTime.now();
-      lastError.value = null;
-      isOnline.value = true;
     } catch (e) {
-      lastError.value = e.toString();
-      isOnline.value = false;
-      // Pending stays in the queue; next tick will retry.
-    } finally {
-      _flushing = false;
+      // Bubble up, handled in flushNow.
+      rethrow;
+    }
+  }
+
+  Future<void> _flushInsights(String uid) async {
+    final pending = InsightsRepository.readPending();
+    if (pending.isEmpty) return;
+    final uploaded = <dynamic>[];
+    for (final insight in pending) {
+      try {
+        final ref = FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .collection('insights')
+            .doc(insight.id);
+        await ref.set({
+          ...insight.toJson(),
+          'createdAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+        uploaded.add(insight);
+      } catch (e) {
+        // Stop on first failure, keep the rest queued for the next tick.
+        break;
+      }
+    }
+    if (uploaded.isNotEmpty) {
+      await InsightsRepository.removePending(uploaded.cast());
     }
   }
 

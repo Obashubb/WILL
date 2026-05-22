@@ -4,7 +4,7 @@ import 'package:get/get.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../services/profile_service.dart';
-import '../../view/auth/auth_controller.dart';
+import '../../controllers/auth_controller.dart';
 import '../../view/error_screen.dart';
 import 'routes.dart';
 

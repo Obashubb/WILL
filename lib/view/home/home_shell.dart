@@ -8,7 +8,7 @@ import '../history/history_screen.dart';
 import '../insights/insights_screen.dart';
 import '../profile/profile_screen.dart';
 import '../widgets/will_nav_bar.dart';
-import 'home_controller.dart';
+import '../../controllers/home_controller.dart';
 
 enum WillTab {
   dashboard(label: 'Dashboard', icon: CupertinoIcons.gauge),

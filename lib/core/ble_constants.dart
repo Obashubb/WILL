@@ -1,6 +1,6 @@
 /// BLE service and characteristic UUIDs for the Will wristband.
 ///
-/// The hex prefix `57494c4c` is "WILL" in ASCII — kept that way to make it
+/// The hex prefix `57494c4c` is "WILL" in ASCII, kept that way to make it
 /// easy to recognize on a sniffer. The firmware running on the ESP32-C3 MUST
 /// expose exactly these UUIDs for the app to discover and bind to them.
 ///

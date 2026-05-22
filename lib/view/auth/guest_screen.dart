@@ -6,7 +6,7 @@ import '../../core/colors.dart';
 import '../../core/router/routes.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';
-import 'auth_controller.dart';
+import '../../controllers/auth_controller.dart';
 
 class GuestScreen extends StatefulWidget {
   const GuestScreen({super.key});

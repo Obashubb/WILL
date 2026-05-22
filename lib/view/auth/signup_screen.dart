@@ -8,7 +8,7 @@ import '../../core/colors.dart';
 import '../../core/router/routes.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';
-import 'auth_controller.dart';
+import '../../controllers/auth_controller.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -130,7 +130,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 4),
               Obx(() {
                 final err = controller.lastError.value;
                 return AnimatedSize(

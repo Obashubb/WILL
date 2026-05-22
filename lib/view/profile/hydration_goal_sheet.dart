@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../../core/colors.dart';
-import '../care/care_controller.dart';
+import '../../controllers/care_controller.dart';
 import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 import '../widgets/will_text_field.dart';

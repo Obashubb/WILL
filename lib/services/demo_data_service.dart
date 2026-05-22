@@ -5,14 +5,16 @@ import 'package:get/get.dart';
 
 import '../models/health_sample.dart';
 import '../models/hydration_entry.dart';
+import '../models/insight.dart';
 import '../models/medication.dart';
 import 'care_repository.dart';
+import 'insights_repository.dart';
 import 'notification_service.dart';
 import 'samples_repository.dart';
 import 'wearable_service.dart';
 
 /// One-stop test harness. Lets you seed plausible medications, hydration
-/// intake, and a few hours of historical sensor data in a tap — and switch
+/// intake, and a few hours of historical sensor data in a tap, and switch
 /// the live mock generator between scenarios so the Insights tab can be
 /// driven through every label without real hardware.
 class DemoDataService {
@@ -154,13 +156,61 @@ class DemoDataService {
     );
   }
 
+  // -- Insights timeline -------------------------------------------------
+
+  /// Seeds six plausible Watch + Act insights spread across today so the
+  /// Insights timeline and Today section show texture during a demo.
+  /// Skips the pending queue (never syncs fake insights to Firestore).
+  static Future<void> seedInsights() async {
+    final now = DateTime.now();
+    // (minutesAgo, label, confidence, hrMean, hrSlope, spo2Min, tempMax,
+    //  motionVar)
+    final scripts = <(int, InsightLabel, double, double, double, double,
+        double, double)>[
+      (520, InsightLabel.stress, 0.74, 108, 1.6, 96, 36.8, 0.03),
+      (390, InsightLabel.normal, 0.55, 84, 0.3, 96, 36.7, 0.12),
+      (250, InsightLabel.dehydration, 0.68, 95, 0.4, 96, 37.4, 0.02),
+      (155, InsightLabel.abnormalOxygen, 0.82, 96, 0.5, 91, 36.9, 0.10),
+      (75, InsightLabel.stress, 0.65, 105, 1.2, 96, 36.8, 0.04),
+      (15, InsightLabel.normal, 0.52, 88, 0.5, 96, 36.7, 0.15),
+    ];
+
+    for (final s in scripts) {
+      final ts = now.subtract(Duration(minutes: s.$1));
+      final insight = Insight(
+        id: 'ins_demo_${ts.microsecondsSinceEpoch}',
+        label: s.$2,
+        confidence: s.$3,
+        probs: _probsFor(s.$2, s.$3),
+        features: InsightFeatures(
+          hrMean: s.$4,
+          hrSlope: s.$5,
+          spo2Min: s.$6,
+          tempMax: s.$7,
+          motionVar: s.$8,
+          sampleCount: 15,
+        ),
+        timestamp: ts,
+      );
+      await InsightsRepository.appendRecent(insight);
+    }
+  }
+
+  static Map<InsightLabel, double> _probsFor(InsightLabel winner, double conf) {
+    final remainder = (1.0 - conf) / (InsightLabel.values.length - 1);
+    return {
+      for (final l in InsightLabel.values) l: l == winner ? conf : remainder,
+    };
+  }
+
   // -- Reset -------------------------------------------------------------
 
-  /// Wipes care + samples, cancels all pending notifications, and resets
-  /// the scenario to normal. The signed-in user is untouched.
+  /// Wipes care + samples + insights, cancels all pending notifications,
+  /// and resets the scenario to normal. The signed-in user is untouched.
   static Future<void> resetAll() async {
     await CareRepository.clearAll();
     await SamplesRepository.clearAll();
+    await InsightsRepository.clearAll();
     await NotificationService.cancelAll();
     Get.find<WearableService>().mockScenario.value = MockScenario.normal;
   }

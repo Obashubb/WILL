@@ -6,8 +6,8 @@ import '../models/health_sample.dart';
 /// uploader has something to flush to Firestore.
 ///
 /// Two stores, both in `get_storage`:
-///  * `samples.recent`  — rolling 24-hour view used by the History screen.
-///  * `samples.pending` — queue of samples not yet acknowledged by Firestore.
+///  * `samples.recent` , rolling 24-hour view used by the History screen.
+///  * `samples.pending`, queue of samples not yet acknowledged by Firestore.
 class SamplesRepository {
   SamplesRepository._();
 

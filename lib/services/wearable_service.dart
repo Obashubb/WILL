@@ -62,7 +62,7 @@ class WearableService extends GetxController {
     super.onClose();
   }
 
-  /// Kicks off pairing — either generates mock samples or scans for the
+  /// Kicks off pairing, either generates mock samples or scans for the
   /// real Will Band, then subscribes to its notify characteristic.
   Future<void> startPairing() async {
     lastError.value = null;

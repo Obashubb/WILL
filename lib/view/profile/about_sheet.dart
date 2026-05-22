@@ -68,7 +68,7 @@ class AboutSheet extends StatelessWidget {
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Final-year project prototype. Not a medical device — do not use for clinical decisions.',
+                      'Final-year project prototype. Not a medical device, do not use for clinical decisions.',
                       style: TextStyle(
                         fontSize: 12,
                         color: WillColors.textPrimary,
