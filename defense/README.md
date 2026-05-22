@@ -21,5 +21,6 @@ Every document follows the same template:
 5. [Random Forest](05-random-forest.md) — the machine learning algorithm we use.
 6. [Bluetooth](06-bluetooth.md) — how the phone talks to the wristband.
 7. [History and sync](07-history-and-sync.md) — local cache, upload queue, Firestore batches.
+8. [Care and reminders](08-care-and-reminders.md) — hydration, medications, insight alerts.
 
 More documents will be added as we build the rest of the app (BLE, reminders, history, sync, etc.).
