@@ -36,12 +36,12 @@ Every reading the `WearableService` produces is funnelled through a single metho
                                                   └─────────────────┘
 ```
 
-**Cache layer (`SamplesRepository`)** — two lists in `get_storage`:
+**Cache layer (`SamplesRepository`)**, two lists in `get_storage`:
 
-- `samples.recent` — appended on every sample; anything older than 24 hours is pruned automatically. The History tab reads from here.
-- `samples.pending` — append-only queue. Samples are removed once Firestore confirms them.
+- `samples.recent`, appended on every sample; anything older than 24 hours is pruned automatically. The History tab reads from here.
+- `samples.pending`, append-only queue. Samples are removed once Firestore confirms them.
 
-**Sync layer (`SyncService`)** — a `Timer` that fires every 60 seconds:
+**Sync layer (`SyncService`)**, a `Timer` that fires every 60 seconds:
 
 1. Read the pending queue.
 2. Group samples by hour (one Firestore document per hour per user).
@@ -53,13 +53,13 @@ If there is no signed-in Firebase user (i.e. guest mode), `SyncService` returns 
 
 ## Why we built it this way
 
-**Tradeoff 1 — write each sample to Firestore vs. batch.** Direct writes are simpler but every sample costs a Firestore write. With one sample every 2 seconds across many users we would blow the free quota fast. Batching by hour drops the cost to one document update per hour, no matter how many samples land in that hour.
+**Tradeoff 1, write each sample to Firestore vs. batch.** Direct writes are simpler but every sample costs a Firestore write. With one sample every 2 seconds across many users we would blow the free quota fast. Batching by hour drops the cost to one document update per hour, no matter how many samples land in that hour.
 
-**Tradeoff 2 — local cache vs. read from cloud every time.** Reading the full history from Firestore on every Dashboard open would be slow and burn read quota. Keeping 24 hours locally makes the History tab instant and works without internet. The cloud is the long-term archive, not the live source.
+**Tradeoff 2, local cache vs. read from cloud every time.** Reading the full history from Firestore on every Dashboard open would be slow and burn read quota. Keeping 24 hours locally makes the History tab instant and works without internet. The cloud is the long-term archive, not the live source.
 
-**Tradeoff 3 — `arrayUnion` vs. nested writes.** `arrayUnion` deduplicates automatically. If the network drops mid-upload and the same batch tries again next tick, Firestore won't write the same sample twice. We don't need a complex acknowledgement protocol.
+**Tradeoff 3, `arrayUnion` vs. nested writes.** `arrayUnion` deduplicates automatically. If the network drops mid-upload and the same batch tries again next tick, Firestore won't write the same sample twice. We don't need a complex acknowledgement protocol.
 
-**Tradeoff 4 — one document per hour vs. one per day.** A day's worth of samples (~43,000 if we sample at 0.5 Hz) is too big for a single Firestore document (the 1 MiB limit). Hour buckets keep each document well under that ceiling and make queries by time range simple.
+**Tradeoff 4, one document per hour vs. one per day.** A day's worth of samples (~43,000 if we sample at 0.5 Hz) is too big for a single Firestore document (the 1 MiB limit). Hour buckets keep each document well under that ceiling and make queries by time range simple.
 
 ## Why this fits our scope
 
@@ -73,17 +73,17 @@ Ada wears her band for an hour:
 
 1. The band emits a sample every 2 seconds. Each one runs through `WearableService._publish()`.
 2. The dashboard's connection pill stays green, the four metric cards (HR, SpO₂, temperature, activity) update on every emission.
-3. After 60 seconds, `SyncService` fires. The pending queue has 30 samples — all in the same hour bucket, say `20260521-13`. It writes one document to `users/{uid}/readings/20260521-13` with the 30 samples in an array. The pending queue empties.
+3. After 60 seconds, `SyncService` fires. The pending queue has 30 samples, all in the same hour bucket, say `20260521-13`. It writes one document to `users/{uid}/readings/20260521-13` with the 30 samples in an array. The pending queue empties.
 4. Ada switches to the History tab and taps the **Temperature** chip. The chart reads the 24-hour cache, picks out the temperature values, and draws a smooth line.
 5. Ada loses Wi-Fi for an hour. The band keeps emitting; samples pile up in `samples.pending` (and still appear in History because `samples.recent` is separate). When connectivity returns, the next sync tick flushes the backlog in one or two batched writes.
 
 ## Where to look
 
-- `lib/services/wearable_service.dart` → `_publish` — single fan-out point.
-- `lib/services/samples_repository.dart` — both local lists.
-- `lib/services/sync_service.dart` — the timer + Firestore writer.
-- `lib/view/history/history_screen.dart` — chart, metric picker, headline values.
-- `firestore.rules` — guarantees one user can only read their own subtree.
+- `lib/services/wearable_service.dart` → `_publish`, single fan-out point.
+- `lib/services/samples_repository.dart`, both local lists.
+- `lib/services/sync_service.dart`, the timer + Firestore writer.
+- `lib/view/history/history_screen.dart`, chart, metric picker, headline values.
+- `firestore.rules`, guarantees one user can only read their own subtree.
 
 ## Further reading
 

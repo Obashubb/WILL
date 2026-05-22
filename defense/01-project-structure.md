@@ -2,7 +2,7 @@
 
 ## What it does
 
-This document explains how the WILL app's code is organized — what each folder is for, and where to look when you want to change something.
+This document explains how the WILL app's code is organized, what each folder is for, and where to look when you want to change something.
 
 ## How it works
 
@@ -17,7 +17,7 @@ WILL/
 ├── assets/     ← fonts, images bundled into the app
 ├── docs/       ← product documents (the PRD and implementation plan)
 ├── defense/    ← these explainer documents (you're reading one)
-├── lib/        ← all the Dart code — the actual app
+├── lib/        ← all the Dart code, the actual app
 └── pubspec.yaml ← list of external packages the app uses
 ```
 
@@ -52,29 +52,29 @@ Three rules to remember:
 
 ## Why we built it this way
 
-**Tradeoff 1 — folders vs. flat files.** Tiny apps can put every file in one folder. Once a project has more than about ten files, finding things becomes painful. Folders cost a little upfront but pay off as the project grows.
+**Tradeoff 1, folders vs. flat files.** Tiny apps can put every file in one folder. Once a project has more than about ten files, finding things becomes painful. Folders cost a little upfront but pay off as the project grows.
 
-**Tradeoff 2 — separating view, model, and service.** We could mix everything — let a screen talk directly to Bluetooth and Firestore. That is faster to write at first. But if we later swap Firebase for something else, we would have to edit every screen. Separation costs a little now and saves a lot later.
+**Tradeoff 2, separating view, model, and service.** We could mix everything, let a screen talk directly to Bluetooth and Firestore. That is faster to write at first. But if we later swap Firebase for something else, we would have to edit every screen. Separation costs a little now and saves a lot later.
 
-**Tradeoff 3 — standard Flutter layout.** We follow the layout that Flutter expects, with no clever custom structure. This means anyone who knows Flutter can open the project and find their way around. Being original where it does not help would only confuse a future maintainer or an examiner.
+**Tradeoff 3, standard Flutter layout.** We follow the layout that Flutter expects, with no clever custom structure. This means anyone who knows Flutter can open the project and find their way around. Being original where it does not help would only confuse a future maintainer or an examiner.
 
 ## Why this fits our scope
 
 This is a final-year project that must be **defended in front of examiners** and **editable** if requirements change. So:
 
 - The structure has to be explainable in two minutes. Five top-level folders. Done.
-- Editing one screen must feel safe — you should not be afraid of breaking another. The folder layout enforces that.
+- Editing one screen must feel safe, you should not be afraid of breaking another. The folder layout enforces that.
 - The structure must match what examiners expect for a Flutter app, so their attention stays on your work, not your folder names.
 
 ## Where to look
 
-- `lib/main.dart` — the entry point (where the app starts).
-- `lib/view/home/home_shell.dart` — the bottom-nav scaffold that wraps every tab.
-- `lib/view/home/home_controller.dart` — keeps track of which tab is active.
-- `pubspec.yaml` — the project's dependency list (packages, fonts, assets).
-- `docs/PRD-IMPLEMENTATION.md` — what we are building, in detail.
+- `lib/main.dart`, the entry point (where the app starts).
+- `lib/view/home/home_shell.dart`, the bottom-nav scaffold that wraps every tab.
+- `lib/view/home/home_controller.dart`, keeps track of which tab is active.
+- `pubspec.yaml`, the project's dependency list (packages, fonts, assets).
+- `docs/PRD-IMPLEMENTATION.md`, what we are building, in detail.
 
 ## Further reading
 
-- [Flutter project structure](https://docs.flutter.dev/get-started/codelab) — the official walkthrough.
-- [Dart language tour](https://dart.dev/language) — the language Flutter uses.
+- [Flutter project structure](https://docs.flutter.dev/get-started/codelab), the official walkthrough.
+- [Dart language tour](https://dart.dev/language), the language Flutter uses.

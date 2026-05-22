@@ -7,7 +7,7 @@ A focused 5-7 minute walkthrough that exercises every feature in the build. Step
 ## 0. Fresh start
 
 - Uninstall and reinstall, or sign out from a previous run.
-- Launch — you should land on **Welcome**.
+- Launch, you should land on **Welcome**.
 
 ---
 
@@ -49,7 +49,7 @@ Pick one path per demo run; the other two paths are quick to show on a separate 
 - Connection pill **Connected** (green dot) at the top.
 - Greeting headline pulled from your name.
 - 2×2 metric grid: Heart rate, Oxygen, Temperature, Activity.
-- Values lerp smoothly every 2 seconds — not snapping.
+- Values lerp smoothly every 2 seconds, not snapping.
 
 ---
 
@@ -68,7 +68,7 @@ Pick one path per demo run; the other two paths are quick to show on a separate 
 1. **History** tab.
 2. Chart populated with 6 hours of data.
 3. Tap **Heart rate / Oxygen / Temperature / Activity** chips.
-4. Notice short abnormal patches mid-day (intentional — they came from the seeded data).
+4. Notice short abnormal patches mid-day (intentional, they came from the seeded data).
 
 ---
 
@@ -86,7 +86,7 @@ Pick one path per demo run; the other two paths are quick to show on a separate 
 
 1. Go to **Profile → Demo data** again.
 2. Pick the **Stress** chip.
-3. Close the sheet, jump to **Dashboard** — values shift: HR climbs into the 100s, motion stays low.
+3. Close the sheet, jump to **Dashboard**, values shift: HR climbs into the 100s, motion stays low.
 4. Wait ≈ 30 s for the inference window to fill.
 5. **Insights** tab → status hero says **"Looking stressed"** with the narrative + recommendations. Confidence bar animates to its level.
 6. Within a few seconds the band buzzes (`WearableCommand.vibrate` in logs) and a system notification arrives on the **Health alerts** channel.
@@ -97,7 +97,7 @@ Repeat with other scenarios to show every label:
 - **Crisis** → all four trees agree quickly, alert fires fast
 - **Normal** → status returns to "All clear"
 
-> The alert cooldown is 5 minutes per label — to re-fire for a demo, switch to another label and back.
+> The alert cooldown is 5 minutes per label, to re-fire for a demo, switch to another label and back.
 
 ---
 
@@ -145,4 +145,4 @@ If any of those misbehaves, that's the regression to flag.
 
 - **Hot-reset to fresh state:** Profile → Demo data → **Reset all demo data**, then sign out.
 - **Demonstrate every Insights label in one minute:** open Demo data → tap scenario chips in sequence with ~15 s between each, jumping to Insights to show the swap.
-- **Show offline-safe sync:** turn off Wi-Fi/cellular on the device — the dashboard keeps updating, the Sync row flips to "Offline". Turn it back on → next minute's flush drains the backlog.
+- **Show offline-safe sync:** turn off Wi-Fi/cellular on the device, the dashboard keeps updating, the Sync row flips to "Offline". Turn it back on → next minute's flush drains the backlog.

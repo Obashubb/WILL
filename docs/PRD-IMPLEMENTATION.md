@@ -1,4 +1,4 @@
-# WILL — Implementation PRD
+# WILL, Implementation PRD
 
 > Companion to `PRD.md` (the academic / requirements doc). This document captures **what we are actually building, how, and in what order**. It supersedes the academic PRD wherever they conflict.
 
@@ -6,7 +6,7 @@
 
 ## 1. Product in one paragraph
 
-WILL is a health-monitoring app for sickle cell patients. A wristband (ESP32-C3) reads vitals — heart rate, SpO₂, body temperature, motion — and streams them to a Flutter phone app over Bluetooth Low Energy. The phone shows live readings, keeps history, runs a small on-device ML model that flags abnormal patterns, reminds the user about water and medication, and backs everything up to Firebase. No server we maintain.
+WILL is a health-monitoring app for sickle cell patients. A wristband (ESP32-C3) reads vitals, heart rate, SpO₂, body temperature, motion, and streams them to a Flutter phone app over Bluetooth Low Energy. The phone shows live readings, keeps history, runs a small on-device ML model that flags abnormal patterns, reminds the user about water and medication, and backs everything up to Firebase. No server we maintain.
 
 ---
 
@@ -14,10 +14,10 @@ WILL is a health-monitoring app for sickle cell patients. A wristband (ESP32-C3)
 
 | Decision | Value | Rationale |
 |---|---|---|
-| Platforms | Android + iOS | Flutter — both for free |
+| Platforms | Android + iOS | Flutter, both for free |
 | App name | WILL | Package id stays `healthapp` for now |
 | Firebase project id | `will-wristband` | Created under `wisdomiyamu@gmail.com` |
-| State management | **GetX** (controllers + Rx + Obx only — no `GetMaterialApp`, no `Get.to`) | Lightweight reactive primitives without dragging in another router |
+| State management | **GetX** (controllers + Rx + Obx only, no `GetMaterialApp`, no `Get.to`) | Lightweight reactive primitives without dragging in another router |
 | Navigation | **`go_router`** with declarative redirect for the auth/onboarding gate | Decouples routing from state; same pattern as sigma_notes / syncc |
 | Storage (cloud) | **Firebase** (Auth + Firestore + FCM) | No custom backend |
 | Storage (local) | `get_storage` for KV, `flutter_secure_storage` for tokens | Already added |
@@ -48,9 +48,9 @@ WILL is a health-monitoring app for sickle cell patients. A wristband (ESP32-C3)
 
 Three layers:
 
-- **Edge** — ESP32-C3 reads sensors at ~1 Hz, packs them, exposes BLE characteristics.
-- **Phone** — Flutter app does the heavy lifting: UI, history, inference, reminders, sync.
-- **Cloud** — Firebase is a managed backup + auth + push provider. Not an inference server.
+- **Edge**, ESP32-C3 reads sensors at ~1 Hz, packs them, exposes BLE characteristics.
+- **Phone**, Flutter app does the heavy lifting: UI, history, inference, reminders, sync.
+- **Cloud**, Firebase is a managed backup + auth + push provider. Not an inference server.
 
 ---
 
@@ -71,10 +71,10 @@ Three layers:
 ### To be added
 | Package | Purpose | Phase |
 |---|---|---|
-| `firebase_messaging` | Push notifications (deferred — local notifications cover v1) | optional |
+| `firebase_messaging` | Push notifications (deferred, local notifications cover v1) | optional |
 
 ### Deliberately skipped
-`riverpod`, `dio`, `go_router`, `firebase_crashlytics`, `tflite_flutter` — not needed for this scope.
+`riverpod`, `dio`, `go_router`, `firebase_crashlytics`, `tflite_flutter`, not needed for this scope.
 
 ---
 
@@ -95,7 +95,7 @@ Phone subscribes to `readings` and receives a new sample every 1–5 s.
 ### 5.2 Phone → Local cache
 
 Every incoming sample lands in:
-- An in-memory `Rx<HealthSample>` (GetX) — drives the live UI.
+- An in-memory `Rx<HealthSample>` (GetX), drives the live UI.
 - A rolling local store (`get_storage` or Hive) keeping the last 24 h for offline history.
 
 ### 5.3 Phone → Cloud (Firestore)
@@ -127,14 +127,14 @@ User actions that need feedback on the wrist (e.g. "vibrate when reminder fires"
 
 Translated to concrete rules for every screen:
 
-- **Information first** — readings and statuses are the loudest things on every screen. Decoration recedes.
+- **Information first**, readings and statuses are the loudest things on every screen. Decoration recedes.
 - **One primary action per screen** at most. No competing CTAs.
-- **No cards-by-default** — use whitespace and rhythm before reaching for borders or shadows. When a card is right, it's a single, generous one — never nested.
+- **No cards-by-default**, use whitespace and rhythm before reaching for borders or shadows. When a card is right, it's a single, generous one, never nested.
 - **No gradient text, no glassmorphism, no side-stripe borders.** (Per `/impeccable` shared design laws.)
 - **Light theme only** for v1. Calmer for a clinical context, easier outdoors.
 - **Type:** FormaDJR. Hierarchy through weight + size, not color.
 - **Color:** neutrals tinted toward the brand hue. One restrained accent (green) for connected / OK states; a deeper red only for genuine alerts.
-- **Motion:** subtle. `Curves.easeOutQuart` or `Curves.easeOutExpo`. No bounce, no elastic. Animate `opacity` and `transform` — never layout dimensions.
+- **Motion:** subtle. `Curves.easeOutQuart` or `Curves.easeOutExpo`. No bounce, no elastic. Animate `opacity` and `transform`, never layout dimensions.
 - **States:** every screen has loading, empty, error, and offline states designed from day one.
 - **Copy:** plain English, no jargon, no em-dashes. "Connected" not "Bluetooth status: paired."
 
@@ -165,7 +165,7 @@ The AI explainer.
 
 ### 7.4 Care
 Hydration + medication.
-- Today's water intake (progress ring or simple bar — pick after `/impeccable shape`).
+- Today's water intake (progress ring or simple bar, pick after `/impeccable shape`).
 - Quick-add buttons (+250 ml, +500 ml).
 - Medication list with next-dose chip; tap to mark "taken" or "skipped."
 
@@ -216,8 +216,8 @@ All belong in "Future improvements" of the academic PRD.
 
 Before we kick off Phase 1:
 
-1. **Account ownership** — confirm `wisdomiyamu@gmail.com` is fine to own the Firebase project long-term (not the school account).
+1. **Account ownership**, confirm `wisdomiyamu@gmail.com` is fine to own the Firebase project long-term (not the school account).
 2. **Mock data first?** Build the BLE service in "mock mode" so the app produces fake samples on a timer, letting us finish the UI before the hardware is ready. (Recommended.)
-3. **Dataset for ML** — do you have a labeled dataset, or do we synthesize one for the prototype?
-4. **Hydration goal** — fixed (e.g. 2.5 L/day) or user-configurable from the start?
-5. **Onboarding** — email/password only, or add Google sign-in too?
+3. **Dataset for ML**, do you have a labeled dataset, or do we synthesize one for the prototype?
+4. **Hydration goal**, fixed (e.g. 2.5 L/day) or user-configurable from the start?
+5. **Onboarding**, email/password only, or add Google sign-in too?

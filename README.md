@@ -48,9 +48,9 @@ firebase deploy --only firestore:rules
 | `lib/view/` | Every screen (auth, onboarding, dashboard, history, insights, care, profile) + shared widgets. |
 | `lib/services/` | Long-running stuff: auth, wearable BLE, sync, inference, notifications, samples + care repos. |
 | `lib/models/` | Data shapes (AppUser, HealthSample, Insight, Medication, HydrationEntry). |
-| `assets/fonts/` | FormaDJR — full weight range. |
-| `assets/ml/` | `model.json` — the on-device Random Forest. |
-| `tools/` | `train_model.py` — sklearn script that regenerates the model. |
+| `assets/fonts/` | FormaDJR, full weight range. |
+| `assets/ml/` | `model.json`, the on-device Random Forest. |
+| `tools/` | `train_model.py`, sklearn script that regenerates the model. |
 | `docs/` | Product requirements (academic + implementation). |
 | `defense/` | Plain-English explainers for every major module. Start with `defense/README.md`. |
 
@@ -60,7 +60,7 @@ Profile → **Demo data** opens a sheet that lets you switch the mock generator 
 
 ## Mock vs real
 
-The wristband firmware is still being built. `WearableService.mockMode` defaults to `true` — the dashboard, history chart, and inference all run against a deterministic mock generator. Flip the flag (or wire it to a Profile toggle) when the firmware advertises the right service UUID and the byte layout in `_decodeReading()` matches.
+The wristband firmware is still being built. `WearableService.mockMode` defaults to `true`, the dashboard, history chart, and inference all run against a deterministic mock generator. Flip the flag (or wire it to a Profile toggle) when the firmware advertises the right service UUID and the byte layout in `_decodeReading()` matches.
 
 ## Building the ML model
 
@@ -73,10 +73,10 @@ The script reads the CSV if present, otherwise synthesizes class-conditional sam
 
 ## Common gotchas
 
-- **No location prompt on Android 11 and below** — BLE scanning needs location permission. The manifest already requests it conditionally.
-- **iOS Bluetooth prompt** — the first time you open the app on a real device, iOS asks for Bluetooth permission. The strings in `Info.plist` explain why.
-- **Test mode Firestore expired** — if writes start failing 30 days after the project was created, redeploy `firestore.rules`.
-- **Notifications denied** — medications still save locally; the user just won't get the daily reminder. The system Settings app is where they can re-enable.
+- **No location prompt on Android 11 and below**, BLE scanning needs location permission. The manifest already requests it conditionally.
+- **iOS Bluetooth prompt**, the first time you open the app on a real device, iOS asks for Bluetooth permission. The strings in `Info.plist` explain why.
+- **Test mode Firestore expired**, if writes start failing 30 days after the project was created, redeploy `firestore.rules`.
+- **Notifications denied**, medications still save locally; the user just won't get the daily reminder. The system Settings app is where they can re-enable.
 
 ## License
 
