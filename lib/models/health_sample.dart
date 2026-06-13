@@ -4,6 +4,9 @@ class HealthSample {
     required this.spo2,
     required this.temperature,
     required this.motion,
+    this.stepcount = 0, // NEW — defaults to 0 so old data still loads
+    this.perfusionIndex = 0,
+    this.hrv = 0,
     required this.timestamp,
   });
 
@@ -19,21 +22,32 @@ class HealthSample {
   /// Motion magnitude, normalized 0-1 (rough indication of activity).
   final double motion;
 
+  final int stepcount;
+
+  final double perfusionIndex;
+  final int hrv;
+
   final DateTime timestamp;
 
   Map<String, dynamic> toJson() => {
-        'hr': heartRate,
-        'spo2': spo2,
-        'temp': temperature,
-        'motion': motion,
-        'ts': timestamp.millisecondsSinceEpoch,
-      };
+    'hr': heartRate,
+    'spo2': spo2,
+    'temp': temperature,
+    'motion': motion,
+    'stepcount': stepcount,
+    'perfusionIndex': perfusionIndex,
+    'hrv': hrv,
+    'ts': timestamp.millisecondsSinceEpoch,
+  };
 
   factory HealthSample.fromJson(Map<String, dynamic> json) => HealthSample(
-        heartRate: json['hr'] as int,
-        spo2: json['spo2'] as int,
-        temperature: (json['temp'] as num).toDouble(),
-        motion: (json['motion'] as num).toDouble(),
-        timestamp: DateTime.fromMillisecondsSinceEpoch(json['ts'] as int),
-      );
+    heartRate: json['hr'] as int,
+    spo2: json['spo2'] as int,
+    temperature: (json['temp'] as num).toDouble(),
+    motion: (json['motion'] as num).toDouble(),
+    stepcount: (json['stepcount'] as int?) ?? 0,
+    perfusionIndex: (json['perfusionIndex'] as num?)?.toDouble() ?? 0,
+    hrv: (json['hrv'] as int?) ?? 0,
+    timestamp: DateTime.fromMillisecondsSinceEpoch(json['ts'] as int),
+  );
 }

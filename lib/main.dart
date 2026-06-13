@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:healthapp/services/notification_service.dart';
 
 import 'core/constants.dart';
 import 'core/router/router.dart';
@@ -9,6 +10,7 @@ import 'core/theme.dart';
 import 'firebase_options.dart';
 import 'services/sync_service.dart';
 import 'services/wearable_service.dart';
+import 'services/inference_service.dart';
 import 'view/auth/auth_controller.dart';
 
 Future<void> main() async {
@@ -19,6 +21,14 @@ Future<void> main() async {
   ]);
   Get.put(AuthController(), permanent: true);
   Get.put(WearableService(), permanent: true);
+  await Get.putAsync<InferenceService>(
+    () => InferenceService().init(),
+    permanent: true,
+  );
+  await Get.putAsync<NotificationService>(
+    () => NotificationService().init(),
+    permanent: true,
+  );
   Get.put(SyncService(), permanent: true).start();
   runApp(const WillApp());
 }

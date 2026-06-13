@@ -24,12 +24,15 @@ class SectionTitle extends StatelessWidget {
         right: horizontalPadding ? 16 : 0,
         top: verticalPadding ? 16 : 0,
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+      child: Stack(
+        alignment: Alignment.center,
         children: [
-          Expanded(
+          Container(
+            width: double.infinity,
+            alignment: Alignment.center,
             child: Text(
               title,
+              textAlign: TextAlign.center,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w600,
@@ -37,7 +40,8 @@ class SectionTitle extends StatelessWidget {
               ),
             ),
           ),
-          ?trailing,
+          if (trailing != null)
+            Align(alignment: Alignment.centerRight, child: trailing!),
         ],
       ),
     );

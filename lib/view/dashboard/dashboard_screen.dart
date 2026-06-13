@@ -20,6 +20,14 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   bool get wantKeepAlive => true;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Get.find<WearableService>().startPairing();
+    });
+  }
+
   String _greeting(DateTime now) {
     if (now.hour < 12) return 'Good morning';
     if (now.hour < 18) return 'Good afternoon';
@@ -36,7 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       final firstName = auth.user.value?.firstName ?? '';
       final greeting = _greeting(DateTime.now());
       final state = wearable.connectionState.value;
-      final sample = wearable.latestSample.value;
+      final sample = wearable.displaySample.value;
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
@@ -73,8 +81,9 @@ class _GreetingBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headline =
-        firstName.isEmpty ? '$greeting.' : '$greeting, $firstName.';
+    final headline = firstName.isEmpty
+        ? '$greeting.'
+        : '$greeting, $firstName.';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -92,10 +101,7 @@ class _GreetingBlock extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           _subtitleFor(state),
-          style: const TextStyle(
-            fontSize: 14,
-            color: WillColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 14, color: WillColors.textSecondary),
         ),
       ],
     );
@@ -140,8 +146,10 @@ class _ConnectionPill extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration:
-                BoxDecoration(color: spec.color, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: spec.color,
+              shape: BoxShape.circle,
+            ),
           ),
           const SizedBox(width: 8),
           Icon(CupertinoIcons.bluetooth, color: spec.color, size: 14),
@@ -199,10 +207,7 @@ class _SectionLabel extends StatelessWidget {
         ),
         Text(
           trailing,
-          style: const TextStyle(
-            fontSize: 11,
-            color: WillColors.textSecondary,
-          ),
+          style: const TextStyle(fontSize: 11, color: WillColors.textSecondary),
         ),
       ],
     );
@@ -256,6 +261,13 @@ class _MetricsGrid extends StatelessWidget {
           unit: '',
           icon: CupertinoIcons.flame_fill,
           accent: WillColors.accent,
+        ),
+        MetricCard(
+          label: 'Steps',
+          value: sample?.stepcount.toString() ?? '--',
+          unit: '',
+          icon: CupertinoIcons.location_solid, // or a footprint-style icon
+          accent: const Color(0xFF9B7BD4), // violet to match History
         ),
       ],
     );

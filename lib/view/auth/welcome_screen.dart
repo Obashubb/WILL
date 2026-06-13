@@ -32,7 +32,7 @@ class WelcomeScreen extends StatelessWidget {
               ).animate().fadeIn(duration: 320.ms),
               const SizedBox(height: 12),
               const Text(
-                'Monitor your health, simply.',
+                'Stay ahead of the crisis.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -94,7 +94,9 @@ class _OutlinedAction extends StatelessWidget {
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: WillColors.primary, width: 1.4),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           padding: EdgeInsets.zero,
         ),
         child: Text(

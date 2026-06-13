@@ -16,13 +16,13 @@ class SamplesRepository {
   static const String _recentKey = 'samples.recent';
   static const String _pendingKey = 'samples.pending';
 
-  static const Duration _retain = Duration(hours: 24);
+  static const Duration _retain = Duration(days: 7);
 
   // -- Recent (history) --------------------------------------------------
 
   static List<HealthSample> readRecent() {
     final raw = _box.read<List>(_recentKey);
-    if (raw == null) return const [];
+    if (raw == null) return [];
     return raw
         .map((e) => HealthSample.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
@@ -33,6 +33,7 @@ class SamplesRepository {
     final cutoff = DateTime.now().subtract(_retain);
     list.removeWhere((s) => s.timestamp.isBefore(cutoff));
     await _box.write(_recentKey, list.map((s) => s.toJson()).toList());
+    print('>>> appendRecent: now ${list.length} samples saved');
   }
 
   static Future<void> clearRecent() => _box.remove(_recentKey);
@@ -41,7 +42,7 @@ class SamplesRepository {
 
   static List<HealthSample> readPending() {
     final raw = _box.read<List>(_pendingKey);
-    if (raw == null) return const [];
+    if (raw == null) return [];
     return raw
         .map((e) => HealthSample.fromJson(Map<String, dynamic>.from(e as Map)))
         .toList();
