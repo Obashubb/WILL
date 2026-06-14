@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import '../../core/colors.dart';
 import '../../models/medications.dart';
 import '../widgets/section_title.dart';
+import '../widgets/will_dialog.dart';
 import 'care_controller.dart';
 
 class CareScreen extends StatefulWidget {
@@ -131,32 +132,32 @@ class _HydrationCard extends StatelessWidget {
     final controller = TextEditingController(
       text: (c.goalMl.value / 1000).toStringAsFixed(1),
     );
-    showDialog(
+    WillDialog.show<void>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Daily water goal'),
-        content: TextField(
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(suffixText: 'litres'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              final litres = double.tryParse(controller.text);
-              if (litres != null && litres > 0) {
-                c.updateGoal((litres * 1000).round());
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
-          ),
-        ],
+      title: 'Daily water goal',
+      child: WillDialogField(
+        label: 'Litres per day',
+        controller: controller,
+        placeholder: '2.0',
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
       ),
+      actions: [
+        WillDialogAction(
+          label: 'Cancel',
+          onPressed: () => Navigator.pop(context),
+        ),
+        WillDialogAction(
+          label: 'Save',
+          primary: true,
+          onPressed: () {
+            final litres = double.tryParse(controller.text);
+            if (litres != null && litres > 0) {
+              c.updateGoal((litres * 1000).round());
+            }
+            Navigator.pop(context);
+          },
+        ),
+      ],
     );
   }
 }
@@ -342,69 +343,113 @@ class _MedicationTile extends StatelessWidget {
 void _addMedication(BuildContext context, CareController c) {
   final nameController = TextEditingController();
   final doseController = TextEditingController();
-  TimeOfDay selectedTime = const TimeOfDay(hour: 8, minute: 0);
+  final timeNotifier =
+      ValueNotifier<TimeOfDay>(const TimeOfDay(hour: 8, minute: 0));
 
-  showDialog(
+  WillDialog.show<void>(
     context: context,
-    builder: (dialogContext) => StatefulBuilder(
-      builder: (context, setState) => AlertDialog(
-        title: const Text('Add medication'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
-            ),
-            TextField(
-              controller: doseController,
-              decoration: const InputDecoration(labelText: 'Dose (e.g. 5mg)'),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Time'),
-                TextButton(
-                  onPressed: () async {
-                    final picked = await showTimePicker(
-                      context: context,
-                      initialTime: selectedTime,
-                    );
-                    if (picked != null) {
-                      setState(() => selectedTime = picked);
-                    }
-                  },
-                  child: Text(
-                    '${selectedTime.hour.toString().padLeft(2, '0')}:${selectedTime.minute.toString().padLeft(2, '0')}',
-                  ),
-                ),
-              ],
-            ),
-          ],
+    title: 'Add medication',
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        WillDialogField(
+          label: 'Name',
+          controller: nameController,
+          placeholder: 'e.g. Hydroxyurea',
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+        WillDialogField(
+          label: 'Dose',
+          controller: doseController,
+          placeholder: '500 mg',
+        ),
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text(
+            'TIME',
+            style: const TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: WillColors.textSecondary,
+              letterSpacing: 0.6,
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              if (nameController.text.trim().isEmpty) return;
-              final med = Medications(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                name: nameController.text.trim(),
-                dose: doseController.text.trim(),
-                hour: selectedTime.hour,
-                minute: selectedTime.minute,
+        ),
+        const SizedBox(height: 6),
+        ValueListenableBuilder<TimeOfDay>(
+          valueListenable: timeNotifier,
+          builder: (innerContext, value, _) => GestureDetector(
+            onTap: () async {
+              final picked = await showTimePicker(
+                context: innerContext,
+                initialTime: value,
               );
-              c.addMedication(med);
-              Navigator.pop(dialogContext);
+              if (picked != null) timeNotifier.value = picked;
             },
-            child: const Text('Add'),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: WillColors.background,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: WillColors.border.withValues(alpha: 0.6),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    CupertinoIcons.time,
+                    size: 16,
+                    color: WillColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: WillColors.textPrimary,
+                    ),
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'Tap to change',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: WillColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     ),
+    actions: [
+      WillDialogAction(
+        label: 'Cancel',
+        onPressed: () => Navigator.pop(context),
+      ),
+      WillDialogAction(
+        label: 'Add',
+        primary: true,
+        onPressed: () {
+          if (nameController.text.trim().isEmpty) return;
+          final med = Medications(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            name: nameController.text.trim(),
+            dose: doseController.text.trim(),
+            hour: timeNotifier.value.hour,
+            minute: timeNotifier.value.minute,
+          );
+          c.addMedication(med);
+          Navigator.pop(context);
+        },
+      ),
+    ],
   );
 }
