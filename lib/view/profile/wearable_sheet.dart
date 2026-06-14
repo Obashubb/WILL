@@ -36,6 +36,11 @@ class WearableSheet extends StatelessWidget {
             final lastSeen = wearable.lastSampleAt.value;
             final adapter = wearable.adapterState.value;
             final needsSettings = wearable.needsAppSettings.value;
+            // Touch the RxList here so the parent Obx subscribes to scan-
+            // result changes — child StatelessWidgets read the list outside
+            // GetX's tracking window and would otherwise stay frozen.
+            // ignore: unused_local_variable
+            final discoveredCount = wearable.discoveredDevices.length;
 
             return Column(
               mainAxisSize: MainAxisSize.min,
