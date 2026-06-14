@@ -1,11 +1,15 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:intl/intl.dart';
 
 import '../../core/colors.dart';
+import '../../helpers/relative_time.dart';
 import '../../models/health_sample.dart';
 import '../../services/wearable_service.dart';
 import '../auth/auth_controller.dart';
+import '../profile/wearable_sheet.dart';
+import '../widgets/will_inkwell.dart';
+import '../widgets/will_primary_button.dart';
 import 'metric_card.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -19,14 +23,6 @@ class _DashboardScreenState extends State<DashboardScreen>
     with AutomaticKeepAliveClientMixin {
   @override
   bool get wantKeepAlive => true;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Get.find<WearableService>().startPairing();
-    });
-  }
 
   String _greeting(DateTime now) {
     if (now.hour < 12) return 'Good morning';
@@ -45,6 +41,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       final greeting = _greeting(DateTime.now());
       final state = wearable.connectionState.value;
       final sample = wearable.displaySample.value;
+      final lastSeen = wearable.lastSampleAt.value;
+      final showEmpty =
+          state == WearableConnectionState.idle && sample == null;
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
         children: [
@@ -52,19 +51,36 @@ class _DashboardScreenState extends State<DashboardScreen>
             greeting: greeting,
             firstName: firstName,
             state: state,
+            onTapPill: () => _openWearableSheet(context),
           ),
           const SizedBox(height: 28),
-          _SectionLabel(
-            title: 'Live health overview',
-            trailing: sample == null
-                ? 'Waiting for data'
-                : 'Updated ${DateFormat.Hm().format(sample.timestamp)}',
-          ),
-          const SizedBox(height: 14),
-          _MetricsGrid(sample: sample),
+          if (showEmpty)
+            _NoBandCard(onPair: () => _openWearableSheet(context))
+          else ...[
+            _SectionLabel(
+              title: 'Live health overview',
+              trailing: lastSeen != null
+                  ? RelativeTime.short(lastSeen)
+                  : 'Waiting for data',
+            ),
+            const SizedBox(height: 14),
+            _MetricsGrid(sample: sample),
+          ],
         ],
       );
     });
+  }
+
+  void _openWearableSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: WillColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const WearableSheet(),
+    );
   }
 }
 
@@ -73,11 +89,13 @@ class _GreetingBlock extends StatelessWidget {
     required this.greeting,
     required this.firstName,
     required this.state,
+    required this.onTapPill,
   });
 
   final String greeting;
   final String firstName;
   final WearableConnectionState state;
+  final VoidCallback onTapPill;
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +105,7 @@ class _GreetingBlock extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _ConnectionPill(state: state),
+        WillInkwell(onTap: onTapPill, child: _ConnectionPill(state: state)),
         const SizedBox(height: 18),
         Text(
           headline,
@@ -116,12 +134,66 @@ class _GreetingBlock extends StatelessWidget {
       case WearableConnectionState.connecting:
         return 'Connecting to your band…';
       case WearableConnectionState.disconnected:
-        return 'Reconnecting to your band…';
+        return 'Trying to reconnect…';
       case WearableConnectionState.error:
-        return 'Tap the band icon in Profile to retry.';
+        return 'Tap the band pill above to fix it.';
       case WearableConnectionState.idle:
-        return 'No band paired yet. Set one up in Profile.';
+        return 'Tap the band pill above to pair your wristband.';
     }
+  }
+}
+
+class _NoBandCard extends StatelessWidget {
+  const _NoBandCard({required this.onPair});
+
+  final VoidCallback onPair;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
+      decoration: BoxDecoration(
+        color: WillColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: WillColors.border.withValues(alpha: 0.7)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: WillColors.primary.withValues(alpha: 0.06),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              CupertinoIcons.bluetooth,
+              size: 32,
+              color: WillColors.primary,
+            ),
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'No band connected',
+            style: TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: WillColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Pair your Will Band to see your live vitals here.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: WillColors.textSecondary),
+          ),
+          const SizedBox(height: 18),
+          WillPrimaryButton(label: 'Pair device', onPressed: onPair),
+        ],
+      ),
+    );
   }
 }
 

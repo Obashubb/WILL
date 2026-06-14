@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/colors.dart';
 import '../../core/router/routes.dart';
+import '../../helpers/relative_time.dart';
+import '../../services/wearable_service.dart';
 import '../auth/auth_controller.dart';
 import '../widgets/section_title.dart';
 import '../widgets/will_inkwell.dart';
+import 'wearable_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,6 +28,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final auth = Get.find<AuthController>();
+    final wearable = Get.find<WearableService>();
     return Obx(() {
       final user = auth.user.value;
       return ListView(
@@ -40,8 +44,8 @@ class _ProfileScreenState extends State<ProfileScreen>
           _SettingRow(
             icon: CupertinoIcons.bluetooth,
             label: 'Wearable',
-            value: 'Mock band',
-            onTap: () {},
+            value: _wearableSummary(wearable),
+            onTap: () => _openWearableSheet(context),
           ),
           _SettingRow(
             icon: CupertinoIcons.bell,
@@ -85,6 +89,40 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       );
     });
+  }
+
+  String _wearableSummary(WearableService wearable) {
+    if (wearable.mockMode.value) return 'Demo mode';
+    final state = wearable.connectionState.value;
+    final lastSeen = wearable.lastSampleAt.value;
+    switch (state) {
+      case WearableConnectionState.connected:
+        return lastSeen != null
+            ? 'Connected · ${RelativeTime.short(lastSeen)}'
+            : 'Connected';
+      case WearableConnectionState.connecting:
+        return 'Connecting…';
+      case WearableConnectionState.scanning:
+        return 'Scanning…';
+      case WearableConnectionState.disconnected:
+        return 'Reconnecting…';
+      case WearableConnectionState.error:
+        return 'Tap to fix';
+      case WearableConnectionState.idle:
+        return 'Not paired';
+    }
+  }
+
+  void _openWearableSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: WillColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const WearableSheet(),
+    );
   }
 }
 

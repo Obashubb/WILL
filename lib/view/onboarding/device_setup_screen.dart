@@ -8,6 +8,7 @@ import '../../core/colors.dart';
 import '../../core/router/routes.dart';
 import '../../services/profile_service.dart';
 import '../../services/wearable_service.dart';
+import '../profile/wearable_sheet.dart';
 import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 
@@ -18,8 +19,16 @@ class DeviceSetupScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final wearable = Get.find<WearableService>();
 
-    Future<void> pair() async {
-      await wearable.startPairing();
+    Future<void> openSheet() async {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: WillColors.background,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (_) => const WearableSheet(),
+      );
       if (wearable.connectionState.value == WearableConnectionState.connected) {
         await ProfileService.markDeviceSetupSeen();
         if (context.mounted) context.go(WillRoutes.home);
@@ -39,7 +48,6 @@ class DeviceSetupScreen extends StatelessWidget {
             final state = wearable.connectionState.value;
             final busy = state == WearableConnectionState.scanning ||
                 state == WearableConnectionState.connecting;
-            final error = state == WearableConnectionState.error;
             return Column(
               children: [
                 const Spacer(flex: 2),
@@ -47,14 +55,10 @@ class DeviceSetupScreen extends StatelessWidget {
                     .animate()
                     .fadeIn(duration: 280.ms),
                 const SizedBox(height: 36),
-                Text(
-                  error
-                      ? 'Could not connect.'
-                      : busy
-                          ? _busyTitle(state)
-                          : 'Connect your Will band.',
+                const Text(
+                  'Connect your Will band.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w700,
                     height: 1.1,
@@ -62,14 +66,12 @@ class DeviceSetupScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
-                    error
-                        ? (wearable.lastError.value ?? 'Try again in a moment.')
-                        : 'Pair the wristband so the app can see your heart rate, oxygen, temperature, and activity in real time.',
+                    'Pair the wristband so the app can see your heart rate, oxygen, temperature, and activity in real time.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
                       color: WillColors.textSecondary,
                       height: 1.4,
@@ -77,17 +79,11 @@ class DeviceSetupScreen extends StatelessWidget {
                   ),
                 ),
                 const Spacer(flex: 3),
-                if (wearable.needsAppSettings.value)
-                  WillPrimaryButton(
-                    label: 'Open Settings',
-                    onPressed: wearable.openPermissionSettings,
-                  )
-                else
-                  WillPrimaryButton(
-                    label: busy ? 'Searching for your band' : 'Pair device',
-                    isLoading: busy,
-                    onPressed: busy ? null : pair,
-                  ),
+                WillPrimaryButton(
+                  label: busy ? 'Searching for your band' : 'Pair device',
+                  isLoading: busy,
+                  onPressed: busy ? null : openSheet,
+                ),
                 const SizedBox(height: 14),
                 WillInkwell(
                   onTap: busy ? null : skip,
@@ -111,17 +107,6 @@ class DeviceSetupScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  String _busyTitle(WearableConnectionState state) {
-    switch (state) {
-      case WearableConnectionState.scanning:
-        return 'Looking for your band…';
-      case WearableConnectionState.connecting:
-        return 'Connecting…';
-      default:
-        return 'Pairing…';
-    }
   }
 }
 
