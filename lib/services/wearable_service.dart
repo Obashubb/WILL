@@ -320,11 +320,16 @@ class WearableService extends GetxController {
       await Future<void>.delayed(const Duration(milliseconds: 600));
 
       final services = await device.discoverServices();
-      final service = services.firstWhere(
-        (s) =>
-            s.uuid.toString().toLowerCase() ==
-            WillBle.serviceUuid.toLowerCase(),
-      );
+
+      final service = services.firstWhere((s) {
+        final found = s.uuid.toString().toLowerCase();
+        final target = WillBle.serviceUuid.toLowerCase();
+        // Android may return the service UUID in short form (e.g. "57494c4c")
+        // while the constant is the full 128-bit form. Match on either.
+        return found == target ||
+            target.startsWith(found) ||
+            found.startsWith(target.split('-').first);
+      });
       _readingsChar = service.characteristics.firstWhere(
         (c) =>
             c.uuid.toString().toLowerCase() ==
