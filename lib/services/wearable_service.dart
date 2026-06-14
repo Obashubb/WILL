@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -279,6 +280,13 @@ class WearableService extends GetxController {
   }
 
   Future<bool> _ensurePermissions() async {
+    // On iOS, flutter_blue_plus requests Bluetooth permission itself when
+    // scanning begins (using the Info.plist usage descriptions). The
+    // Android-style scan/connect permissions don't apply, so skip them.
+    if (Platform.isIOS) {
+      return true;
+    }
+
     final statuses = await [
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
