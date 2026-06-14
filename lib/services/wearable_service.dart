@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math';
 
+import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:get/get.dart';
@@ -322,8 +323,8 @@ class WearableService extends GetxController {
         );
         _log('[$tag] connect: device.connect returned (attempt $attempt)');
         break;
-      } catch (e) {
-        _log('[$tag] connect: device.connect FAILED (attempt $attempt): $e');
+      } catch (e, s) {
+        _report('connect.phase1.gatt (attempt $attempt)', tag, e, s);
         if (attempt < 2 && _isTransientConnectError(e)) {
           await Future<void>.delayed(const Duration(milliseconds: 700));
           continue;
@@ -342,8 +343,8 @@ class WearableService extends GetxController {
           .first
           .timeout(const Duration(seconds: 10));
       _log('[$tag] connect: connectionState reached connected');
-    } catch (e) {
-      _log('[$tag] connect: settle FAILED: $e');
+    } catch (e, s) {
+      _report('connect.phase2.settle', tag, e, s);
       _setError(
         'Your band connected but disconnected right away. '
         'Reset it (power off then on) and try again.',
@@ -370,8 +371,8 @@ class WearableService extends GetxController {
                 WillBle.serviceUuid.toLowerCase(),
             orElse: () => null,
           );
-    } catch (e) {
-      _log('[$tag] connect: discoverServices FAILED: $e');
+    } catch (e, s) {
+      _report('connect.phase3.discover', tag, e, s);
       _setError(
         'Connected, but couldn\'t read the band\'s services. '
         'Reset the band (power off then on) and pair again.',
@@ -382,7 +383,14 @@ class WearableService extends GetxController {
       return;
     }
     if (service == null) {
-      _log('[$tag] connect: Will service UUID not found on device');
+      // Record as a non-fatal so we see which device UUIDs we are bumping
+      // into in the wild — helps decide whether to relax the filter.
+      _report(
+        'connect.phase3.missing_service',
+        tag,
+        StateError('Will service UUID not advertised by ${device.advName}'),
+        StackTrace.current,
+      );
       _setError(
         "This device isn't running the Will Band firmware "
         '(or it has a different service id). Make sure you picked the right one.',
@@ -406,9 +414,13 @@ class WearableService extends GetxController {
           orElse: () => null,
         );
     if (readings == null || commands == null) {
-      _log(
-        '[$tag] connect: missing characteristic '
-        '(readings=${readings != null}, commands=${commands != null})',
+      _report(
+        'connect.phase3.missing_characteristic',
+        tag,
+        StateError(
+          'readings=${readings != null}, commands=${commands != null}',
+        ),
+        StackTrace.current,
       );
       _setError(
         "The band's firmware doesn't expose the expected channels. "
@@ -427,8 +439,8 @@ class WearableService extends GetxController {
       await _readingsChar!.setNotifyValue(true);
       _notifySub = _readingsChar!.lastValueStream.listen(_decodeReading);
       _log('[$tag] connect: notifications subscribed');
-    } catch (e) {
-      _log('[$tag] connect: setNotifyValue FAILED: $e');
+    } catch (e, s) {
+      _report('connect.phase4.notify', tag, e, s);
       _setError(
         "Couldn't subscribe to the band's data stream. Try pairing again.",
       );
@@ -453,6 +465,35 @@ class WearableService extends GetxController {
       debugPrint('WearableService $message');
       return true;
     }());
+  }
+
+  /// Reports a phase-tagged non-fatal error to Crashlytics with the device's
+  /// remote id as a custom key, so we can correlate dashboard reports with
+  /// specific testers' devices. Also prints to console in debug mode.
+  static void _report(
+    String reason,
+    String deviceTag,
+    Object error,
+    StackTrace stack,
+  ) {
+    assert(() {
+      debugPrint('WearableService[$reason] [$deviceTag] $error');
+      return true;
+    }());
+    try {
+      FirebaseCrashlytics.instance
+        ..setCustomKey('ble.device', deviceTag)
+        ..setCustomKey('ble.phase', reason)
+        ..recordError(
+          error,
+          stack,
+          reason: 'wearable: $reason',
+          fatal: false,
+        );
+    } catch (_) {
+      // Crashlytics not initialised yet during cold boot — swallow so we
+      // don't mask the original error.
+    }
   }
 
   bool _isTransientConnectError(Object e) {
