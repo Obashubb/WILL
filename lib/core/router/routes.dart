@@ -1,11 +1,14 @@
 import 'package:go_router/go_router.dart';
 
+import '../../models/insight.dart';
 import '../../view/auth/guest_screen.dart';
 import '../../view/auth/login_screen.dart';
 import '../../view/auth/signup_screen.dart';
 import '../../view/auth/welcome_screen.dart';
 import '../../view/error_screen.dart';
 import '../../view/home/home_shell.dart';
+import '../../view/insights_history/insight_detail_screen.dart';
+import '../../view/insights_history/insights_history_screen.dart';
 import '../../view/onboarding/device_setup_screen.dart';
 
 class WillRoutes {
@@ -26,6 +29,8 @@ class WillRoutes {
 
   // region APP
   static const String home = '/home';
+  static const String insightsHistory = '/insights-history';
+  static const String insightDetail = '/insight-detail';
   static const String error = '/error';
   // endregion
 
@@ -49,6 +54,15 @@ class WillRoutes {
       builder: (context, state) => const DeviceSetupScreen(),
     ),
     GoRoute(path: home, builder: (context, state) => const HomeShell()),
+    GoRoute(
+      path: insightsHistory,
+      builder: (context, state) => const InsightsHistoryScreen(),
+    ),
+    GoRoute(
+      path: insightDetail,
+      builder: (context, state) =>
+          InsightDetailScreen(insight: state.extra as Insight),
+    ),
     GoRoute(
       path: error,
       builder: (context, state) {

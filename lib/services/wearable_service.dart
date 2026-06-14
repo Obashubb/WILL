@@ -8,10 +8,11 @@ import 'package:permission_handler/permission_handler.dart';
 
 import '../core/ble_constants.dart';
 import '../models/health_sample.dart';
+import 'inference_service.dart';
+import 'insights_repository.dart';
 import 'notification_service.dart';
 import 'profile_service.dart';
 import 'samples_repository.dart';
-import 'inference_service.dart';
 
 enum WearableConnectionState {
   idle,
@@ -176,6 +177,9 @@ class WearableService extends GetxController {
       final inference = Get.find<InferenceService>();
       final result = inference.classify(sample);
       currentInsight.value = result;
+      // Transition-aware persister: stores when the label changes or as a
+      // 5-minute heartbeat. Drives the Insights History screen.
+      InsightsRepository.recordIfMeaningful(result, sample);
 
       if (result.severity == InsightLabel.alert) {
         _maybeAlert(result);
