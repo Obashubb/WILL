@@ -30,11 +30,12 @@ class UserBaseline {
       };
 
   factory UserBaseline.fromJson(Map<String, dynamic> json) => UserBaseline(
-        restingHr: (json['restingHr'] as num).toInt(),
-        restingSpo2: (json['restingSpo2'] as num).toInt(),
-        restingTemp: (json['restingTemp'] as num).toDouble(),
-        capturedAt:
-            DateTime.fromMillisecondsSinceEpoch(json['capturedAt'] as int),
+        restingHr: (json['restingHr'] as num?)?.toInt() ?? 72,
+        restingSpo2: (json['restingSpo2'] as num?)?.toInt() ?? 97,
+        restingTemp: (json['restingTemp'] as num?)?.toDouble() ?? 36.7,
+        capturedAt: json['capturedAt'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(json['capturedAt'] as int)
+            : DateTime.now(),
       );
 
   UserBaseline copyWith({

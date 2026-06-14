@@ -41,13 +41,15 @@ class HealthSample {
   };
 
   factory HealthSample.fromJson(Map<String, dynamic> json) => HealthSample(
-    heartRate: json['hr'] as int,
-    spo2: json['spo2'] as int,
-    temperature: (json['temp'] as num).toDouble(),
-    motion: (json['motion'] as num).toDouble(),
-    stepcount: (json['stepcount'] as int?) ?? 0,
+    heartRate: (json['hr'] as num?)?.toInt() ?? 0,
+    spo2: (json['spo2'] as num?)?.toInt() ?? 0,
+    temperature: (json['temp'] as num?)?.toDouble() ?? 0,
+    motion: (json['motion'] as num?)?.toDouble() ?? 0,
+    stepcount: (json['stepcount'] as num?)?.toInt() ?? 0,
     perfusionIndex: (json['perfusionIndex'] as num?)?.toDouble() ?? 0,
-    hrv: (json['hrv'] as int?) ?? 0,
-    timestamp: DateTime.fromMillisecondsSinceEpoch(json['ts'] as int),
+    hrv: (json['hrv'] as num?)?.toInt() ?? 0,
+    timestamp: json['ts'] is int
+        ? DateTime.fromMillisecondsSinceEpoch(json['ts'] as int)
+        : DateTime.now(),
   );
 }

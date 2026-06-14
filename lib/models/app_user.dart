@@ -37,12 +37,12 @@ class AppUser {
       };
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-        id: json['id'] as String,
-        name: json['name'] as String,
+        id: (json['id'] as String?) ?? 'unknown',
+        name: (json['name'] as String?) ?? 'Friend',
         email: json['email'] as String?,
-        isGuest: json['isGuest'] as bool,
-        createdAt: DateTime.fromMillisecondsSinceEpoch(
-          json['createdAt'] as int,
-        ),
+        isGuest: (json['isGuest'] as bool?) ?? false,
+        createdAt: json['createdAt'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(json['createdAt'] as int)
+            : DateTime.now(),
       );
 }

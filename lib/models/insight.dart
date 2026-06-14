@@ -40,22 +40,40 @@ class Insight {
         'helpful': helpful,
       };
 
-  factory Insight.fromJson(Map<String, dynamic> json) => Insight(
-        id: json['id'] as String,
-        timestamp:
-            DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int),
-        severity: InsightLabel.values.firstWhere(
-          (e) => e.name == json['severity'],
-          orElse: () => InsightLabel.normal,
-        ),
-        condition: ConditionLabel.values.firstWhere(
-          (e) => e.name == json['condition'],
-          orElse: () => ConditionLabel.none,
-        ),
-        sample:
-            HealthSample.fromJson(Map<String, dynamic>.from(json['sample'])),
-        helpful: json['helpful'] as bool?,
-      );
+  factory Insight.fromJson(Map<String, dynamic> json) {
+    // Defensive: storage from earlier builds may be missing fields. We
+    // build an Insight from whatever we can, falling back to safe values
+    // so a single corrupt entry never crashes the screen.
+    final ts = json['timestamp'] is int
+        ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
+        : DateTime.now();
+    final severity = InsightLabel.values.firstWhere(
+      (e) => e.name == json['severity'],
+      orElse: () => InsightLabel.normal,
+    );
+    final condition = ConditionLabel.values.firstWhere(
+      (e) => e.name == json['condition'],
+      orElse: () => ConditionLabel.none,
+    );
+    final rawSample = json['sample'];
+    final sample = rawSample is Map
+        ? HealthSample.fromJson(Map<String, dynamic>.from(rawSample))
+        : HealthSample(
+            heartRate: 0,
+            spo2: 0,
+            temperature: 0,
+            motion: 0,
+            timestamp: ts,
+          );
+    return Insight(
+      id: (json['id'] as String?) ?? buildId(ts, severity, condition),
+      timestamp: ts,
+      severity: severity,
+      condition: condition,
+      sample: sample,
+      helpful: json['helpful'] as bool?,
+    );
+  }
 
   Insight copyWith({bool? helpful}) => Insight(
         id: id,
