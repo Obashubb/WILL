@@ -3,9 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/colors.dart';
 
-/// Squared-off, neutral-toned dialog shell used everywhere we need a modal
-/// form. Replaces Material's `AlertDialog` so the rest of the app's visual
-/// language carries through.
 class WillDialog extends StatelessWidget {
   const WillDialog({
     super.key,
@@ -18,8 +15,6 @@ class WillDialog extends StatelessWidget {
   final Widget child;
   final List<Widget> actions;
 
-  /// Convenience static so callers don't have to thread `showDialog` +
-  /// builder boilerplate every time.
   static Future<T?> show<T>({
     required BuildContext context,
     required String title,
@@ -87,8 +82,6 @@ class WillDialog extends StatelessWidget {
   }
 }
 
-/// Squared action button used inside [WillDialog]. Primary variant uses the
-/// brand primary fill, secondary is a flat text-style button.
 class WillDialogAction extends StatelessWidget {
   const WillDialogAction({
     super.key,
@@ -140,9 +133,6 @@ class WillDialogAction extends StatelessWidget {
   }
 }
 
-/// Squared, low-chrome text field for inline form inputs inside a
-/// [WillDialog]. Matches the visual language of the rest of the app
-/// (surface fill, soft border).
 class WillDialogField extends StatelessWidget {
   const WillDialogField({
     super.key,

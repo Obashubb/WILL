@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/colors.dart';
 import '../../../helpers/insight_history_filter.dart';
 
-/// Single-select range picker spanning the available width (Today / This week
-/// / All). Visual style matches the History screen's window picker.
 class DateRangeChips extends StatelessWidget {
   const DateRangeChips({
     super.key,

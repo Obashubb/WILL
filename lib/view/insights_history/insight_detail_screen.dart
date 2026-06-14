@@ -10,9 +10,6 @@ import '../../services/insights_repository.dart';
 import '../../services/profile_service.dart';
 import 'widgets/leading_up_list.dart';
 
-/// Per-insight retrospective: severity hero, captured vitals, baseline
-/// comparison if available, feedback, and a 5-up timeline of what happened
-/// in the run-up. Loaded via `state.extra`.
 class InsightDetailScreen extends StatefulWidget {
   const InsightDetailScreen({super.key, required this.insight});
 
@@ -312,9 +309,8 @@ class _FeatureRow extends StatelessWidget {
   final String label;
   final String value;
 
-  /// `null` when no baseline is set. Otherwise current - resting; positive
-  /// values are "above baseline" (or below, when [inverted] is true, since
-  /// SpO₂ going down is the concerning direction).
+  /// Positive = above baseline. When [inverted] is true (SpO₂), going DOWN
+  /// is the concerning direction so we colour negatives as warnings.
   final num? baselineDelta;
   final String? baselineUnit;
   final bool inverted;

@@ -8,9 +8,6 @@ import '../../../models/insight.dart';
 import '../../../services/insights_repository.dart';
 import 'timeline_row.dart';
 
-/// The "What happened before" timeline on the detail screen. Pulls up to
-/// [limit] insights that fired before [pivot] and renders them with the
-/// same TimelineRow used by the main list.
 class LeadingUpList extends StatelessWidget {
   const LeadingUpList({super.key, required this.pivot, this.limit = 5});
 

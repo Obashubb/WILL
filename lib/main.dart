@@ -19,8 +19,6 @@ import 'services/inference_service.dart';
 import 'view/auth/auth_controller.dart';
 
 Future<void> main() async {
-  // Run everything inside a guarded zone so any uncaught async error gets
-  // routed to Crashlytics instead of silently dying in a logger somewhere.
   await runZonedGuarded<Future<void>>(() async {
     WidgetsFlutterBinding.ensureInitialized();
     await Future.wait([
@@ -28,10 +26,6 @@ Future<void> main() async {
       GetStorage.init(),
     ]);
 
-    // Crashlytics: capture every Flutter framework error + any unhandled
-    // platform error. In debug builds we forward to console; in release
-    // they go to the Crashlytics dashboard so we can chase issues testers
-    // hit on their own phones.
     FlutterError.onError = (details) {
       FlutterError.presentError(details);
       FirebaseCrashlytics.instance.recordFlutterError(details);
@@ -42,11 +36,7 @@ Future<void> main() async {
     };
     await FirebaseCrashlytics.instance
         .setCrashlyticsCollectionEnabled(!kDebugMode);
-
-    // Analytics: instance available for screen + event tracking. The
-    // router's observer is wired in WillApp below.
-    final analytics = FirebaseAnalytics.instance;
-    await analytics.setAnalyticsCollectionEnabled(true);
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
 
     Get.put(AuthController(), permanent: true);
     Get.put(WearableService(), permanent: true);

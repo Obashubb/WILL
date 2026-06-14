@@ -26,8 +26,6 @@ enum WearableConnectionState {
 }
 
 class WearableService extends GetxController {
-  // Public reactive state ---------------------------------------------------
-
   final Rx<WearableConnectionState> connectionState =
       WearableConnectionState.idle.obs;
   final Rxn<HealthSample> latestSample = Rxn<HealthSample>();
@@ -39,20 +37,9 @@ class WearableService extends GetxController {
     ConditionLabel.none,
   ).obs;
   final Rxn<HealthSample> displaySample = Rxn<HealthSample>();
-
-  /// Every device the most recent scan turned up. Sorted by RSSI (strongest
-  /// first) and de-duplicated by remoteId. UI lists this directly.
   final RxList<ScanResult> discoveredDevices = <ScanResult>[].obs;
-
-  /// Wall-clock time the last successful sample arrived. Drives "Updated 3s
-  /// ago" affordances across the app.
   final Rxn<DateTime> lastSampleAt = Rxn<DateTime>();
-
-  /// Whether the OS Bluetooth adapter is on/off/unauthorized. UI uses this
-  /// to swap the "turn on Bluetooth" card in for the device list.
   final Rxn<BluetoothAdapterState> adapterState = Rxn<BluetoothAdapterState>();
-
-  // Internal state ----------------------------------------------------------
 
   StreamSubscription<List<ScanResult>>? _scanSub;
   StreamSubscription<BluetoothAdapterState>? _adapterSub;
@@ -65,8 +52,6 @@ class WearableService extends GetxController {
   DateTime _lastDisplay = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastAlert = DateTime.fromMillisecondsSinceEpoch(0);
 
-  // Auto-reconnect backoff ladder. Walks forward each failed attempt; resets
-  // on a successful reconnect or when the user manually stops.
   static const _reconnectLadder = <Duration>[
     Duration(seconds: 2),
     Duration(seconds: 5),
@@ -83,16 +68,12 @@ class WearableService extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Watch the OS Bluetooth adapter. If the user turns BT off, the UI
-    // reacts; if they turn it back on after a previous "BT off" error,
-    // we resume scanning automatically.
     _adapterSub = FlutterBluePlus.adapterState.listen((state) {
       adapterState.value = state;
       if (state == BluetoothAdapterState.on &&
           connectionState.value == WearableConnectionState.error &&
           (lastError.value?.contains('Bluetooth is off') ?? false)) {
         lastError.value = null;
-        // Best-effort silent restart; user can also tap "Scan" themselves.
         startPairing();
       }
     });
@@ -105,10 +86,6 @@ class WearableService extends GetxController {
     super.onClose();
   }
 
-  // Public API --------------------------------------------------------------
-
-  /// Kicks off pairing. Begins a BLE scan and exposes every nearby device
-  /// via [discoveredDevices]; the sheet renders that list directly.
   Future<void> startPairing() async {
     lastError.value = null;
     needsAppSettings.value = false;
@@ -116,8 +93,6 @@ class WearableService extends GetxController {
     await _startReal();
   }
 
-  /// Connects to a device the user picked from the nearby list. Reuses the
-  /// same connection path as the auto-connect-on-single-Will-match flow.
   Future<void> connectTo(BluetoothDevice device) async {
     _userStopped = false;
     try {
@@ -148,21 +123,16 @@ class WearableService extends GetxController {
     }
   }
 
-  /// Opens the OS settings page for this app so the user can re-enable
-  /// Bluetooth permission after a permanent denial.
   Future<void> openPermissionSettings() async {
     await openAppSettings();
   }
 
-  /// Single funnel for every new sample: live UI, last-seen, recent-history
-  /// cache, and upload queue all get the same value.
   void _publish(HealthSample sample) {
     latestSample.value = sample;
     lastSampleAt.value = sample.timestamp;
     SamplesRepository.appendRecent(sample);
     SamplesRepository.enqueuePending(sample);
 
-    // Dashboard display, show first reading instantly, then every 5s.
     final nowD = DateTime.now();
     if (displaySample.value == null ||
         nowD.difference(_lastDisplay).inSeconds >= 5) {
@@ -170,7 +140,6 @@ class WearableService extends GetxController {
       displaySample.value = sample;
     }
 
-    // Motion-gated, throttled inference.
     final now = DateTime.now();
     const motionThreshold = 0.6;
     if (now.difference(_lastInference).inSeconds >= 30 &&
@@ -179,8 +148,6 @@ class WearableService extends GetxController {
       final inference = Get.find<InferenceService>();
       final result = inference.classify(sample);
       currentInsight.value = result;
-      // Transition-aware persister: stores when the label changes or as a
-      // 5-minute heartbeat. Drives the Insights History screen.
       InsightsRepository.recordIfMeaningful(result, sample);
 
       if (result.severity == InsightLabel.alert) {
@@ -188,8 +155,6 @@ class WearableService extends GetxController {
       }
     }
   }
-
-  // Real BLE ----------------------------------------------------------------
 
   Future<void> _startReal() async {
     if (Platform.isAndroid) {
@@ -226,9 +191,6 @@ class WearableService extends GetxController {
     discoveredDevices.clear();
 
     try {
-      // No service filter: we want every nearby device so the user can see
-      // what's around, even when their band is misconfigured or off. The
-      // sheet pins Will Band candidates to the top of the list.
       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 30));
     } catch (_) {
       _setError("Couldn't start scanning. Please try again.");
@@ -238,9 +200,6 @@ class WearableService extends GetxController {
     _scanSub = FlutterBluePlus.scanResults.listen((results) async {
       _mergeScanResults(results);
 
-      // Auto-connect on the common case: exactly one Will Band in range and
-      // the user hasn't picked something else yet. Multiple candidates leave
-      // the choice to the user.
       if (connectionState.value != WearableConnectionState.scanning) return;
       final willMatches = results.where(_looksLikeWillBand).toList();
       if (willMatches.length == 1) {
@@ -254,8 +213,6 @@ class WearableService extends GetxController {
       }
     });
 
-    // After the scan finishes naturally, surface a friendly hint if we
-    // never saw a Will Band candidate. The device list stays visible.
     Future<void>.delayed(const Duration(seconds: 31), () {
       if (connectionState.value != WearableConnectionState.scanning) return;
       final hasWill = discoveredDevices.any(_looksLikeWillBand);
@@ -265,7 +222,6 @@ class WearableService extends GetxController {
           'or pick a device from the list to try anyway.',
         );
       } else {
-        // Multiple Will-name candidates — keep the list visible, return to idle.
         connectionState.value = WearableConnectionState.idle;
       }
     });
@@ -276,7 +232,6 @@ class WearableService extends GetxController {
       for (final r in discoveredDevices) r.device.remoteId.str: r,
     };
     for (final r in results) {
-      // Skip totally unnamed devices to keep the list scannable.
       final name = r.device.advName.isNotEmpty
           ? r.device.advName
           : r.advertisementData.advName;
@@ -310,9 +265,6 @@ class WearableService extends GetxController {
     final tag = device.remoteId.str;
     _log('[$tag] connect: starting');
 
-    // Phase 1 — open the GATT connection. Android occasionally returns
-    // "GATT error 133" on the first attempt; one retry recovers the bulk
-    // of those cases without bothering the user.
     var attempt = 0;
     while (true) {
       attempt++;
@@ -334,9 +286,8 @@ class WearableService extends GetxController {
       }
     }
 
-    // Phase 2 — wait for the connectionState stream to actually report
-    // "connected". iOS discoverServices fails if called before the
-    // connection has fully settled.
+    // iOS fails discoverServices if called before the connection has fully
+    // settled — wait for the state stream to confirm connected, then a beat.
     try {
       await device.connectionState
           .where((s) => s == BluetoothConnectionState.connected)
@@ -356,8 +307,6 @@ class WearableService extends GetxController {
     }
     await Future<void>.delayed(const Duration(milliseconds: 600));
 
-    // Phase 3 — service discovery + characteristic lookup. Use orElse so
-    // a stray non-Will device doesn't blow up with a StateError.
     final BluetoothService? service;
     try {
       final services = await device.discoverServices();
@@ -383,8 +332,6 @@ class WearableService extends GetxController {
       return;
     }
     if (service == null) {
-      // Record as a non-fatal so we see which device UUIDs we are bumping
-      // into in the wild — helps decide whether to relax the filter.
       _report(
         'connect.phase3.missing_service',
         tag,
@@ -434,7 +381,6 @@ class WearableService extends GetxController {
     _readingsChar = readings;
     _commandsChar = commands;
 
-    // Phase 4 — subscribe to notifications and we're live.
     try {
       await _readingsChar!.setNotifyValue(true);
       _notifySub = _readingsChar!.lastValueStream.listen(_decodeReading);
@@ -458,18 +404,12 @@ class WearableService extends GetxController {
   }
 
   static void _log(String message) {
-    // Debug-mode only so the console isn't polluted in release builds.
-    // Run `flutter logs` (or watch Xcode/Android Studio) while pairing
-    // to see exactly which phase a problem device dies on.
     assert(() {
       debugPrint('WearableService $message');
       return true;
     }());
   }
 
-  /// Reports a phase-tagged non-fatal error to Crashlytics with the device's
-  /// remote id as a custom key, so we can correlate dashboard reports with
-  /// specific testers' devices. Also prints to console in debug mode.
   static void _report(
     String reason,
     String deviceTag,
@@ -490,16 +430,11 @@ class WearableService extends GetxController {
           reason: 'wearable: $reason',
           fatal: false,
         );
-    } catch (_) {
-      // Crashlytics not initialised yet during cold boot — swallow so we
-      // don't mask the original error.
-    }
+    } catch (_) {}
   }
 
   bool _isTransientConnectError(Object e) {
     final s = e.toString().toLowerCase();
-    // Android's notorious GATT error 133, plus a couple of variants the
-    // platform returns when the stack hiccups during initial handshake.
     return s.contains('133') ||
         s.contains('gatt error') ||
         s.contains('androidcode: 133');
@@ -554,7 +489,6 @@ class WearableService extends GetxController {
         license: License.free,
         timeout: const Duration(seconds: 8),
       );
-      // Some firmwares need a re-discover after dropping. Cheap, idempotent.
       final services = await device.discoverServices();
       final service = services.firstWhere(
         (s) =>
@@ -574,7 +508,6 @@ class WearableService extends GetxController {
       connectionState.value = WearableConnectionState.connected;
       _reconnectAttempt = 0;
     } catch (_) {
-      // Move to the next backoff step.
       _scheduleReconnect();
     }
   }
@@ -616,11 +549,8 @@ class WearableService extends GetxController {
   }
 
   Future<_PermResult> _ensureAndroidPermissions() async {
-    // Android 12+ (API 31+) needs BLUETOOTH_SCAN + BLUETOOTH_CONNECT.
-    // Android 11 and below uses the legacy BLUETOOTH perms + ACCESS_FINE_LOCATION
-    // (declared in the manifest with maxSdkVersion="30"). Requesting
-    // locationWhenInUse here is a no-op on Android 12+ thanks to the
-    // neverForLocation flag on BLUETOOTH_SCAN, and is required on Android 11.
+    // locationWhenInUse required for Android <12; harmless on 12+ thanks to
+    // neverForLocation on BLUETOOTH_SCAN in the manifest.
     final statuses = await <Permission>[
       Permission.bluetoothScan,
       Permission.bluetoothConnect,

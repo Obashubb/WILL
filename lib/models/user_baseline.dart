@@ -1,7 +1,3 @@
-/// The user's resting numbers, captured once during onboarding (or edited
-/// later from the Profile sheet). Insight narratives compare current
-/// readings against these so the "why" feels personal — e.g. "10 bpm
-/// over your usual rest" instead of an abstract threshold.
 class UserBaseline {
   const UserBaseline({
     required this.restingHr,
@@ -10,16 +6,9 @@ class UserBaseline {
     required this.capturedAt,
   });
 
-  /// Resting heart rate in beats per minute.
   final int restingHr;
-
-  /// Resting blood oxygen percent.
   final int restingSpo2;
-
-  /// Resting body temperature in degrees Celsius.
   final double restingTemp;
-
-  /// When the user set / updated the baseline.
   final DateTime capturedAt;
 
   Map<String, dynamic> toJson() => {

@@ -11,9 +11,6 @@ import '../../services/wearable_service.dart';
 import '../widgets/will_inkwell.dart';
 import '../widgets/will_primary_button.dart';
 
-/// Single source of truth for everything band-related. Opens from the Profile
-/// row, the dashboard pill, and the onboarding screen so the user always
-/// lands in the same place to manage the wearable.
 class WearableSheet extends StatelessWidget {
   const WearableSheet({super.key});
 
@@ -36,9 +33,8 @@ class WearableSheet extends StatelessWidget {
             final lastSeen = wearable.lastSampleAt.value;
             final adapter = wearable.adapterState.value;
             final needsSettings = wearable.needsAppSettings.value;
-            // Touch the RxList here so the parent Obx subscribes to scan-
-            // result changes — child StatelessWidgets read the list outside
-            // GetX's tracking window and would otherwise stay frozen.
+            // Touch the RxList so the parent Obx tracks scan-result changes;
+            // child StatelessWidgets read it outside GetX's tracking window.
             // ignore: unused_local_variable
             final discoveredCount = wearable.discoveredDevices.length;
 

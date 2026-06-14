@@ -1,8 +1,6 @@
 import '../models/insight.dart';
 import '../services/inference_service.dart';
 
-/// Coarse-grained date range options for the Insights History screen.
-/// Single-select; the chip strip swaps the active value reactively.
 enum InsightDateRange {
   today('Today'),
   thisWeek('This week'),
@@ -12,8 +10,6 @@ enum InsightDateRange {
   final String label;
 }
 
-/// Returns the subset of [all] that matches the active filters. Pass
-/// `severity = null` for the "All" pill.
 List<Insight> filterInsights(
   List<Insight> all, {
   InsightLabel? severity,
@@ -37,9 +33,6 @@ List<Insight> filterInsights(
       .toList();
 }
 
-/// Groups insights by calendar day. Keys are the midnight-of-that-day
-/// `DateTime`, sorted newest first; values are insights within the day,
-/// already sorted newest first because the input list is.
 Map<DateTime, List<Insight>> groupByDay(List<Insight> insights) {
   final out = <DateTime, List<Insight>>{};
   for (final i in insights) {
@@ -50,8 +43,6 @@ Map<DateTime, List<Insight>> groupByDay(List<Insight> insights) {
   return {for (final k in sortedKeys) k: out[k]!};
 }
 
-/// Returns up to [limit] insights that occurred BEFORE [pivot], newest
-/// first. Used by the detail screen's "What happened before" timeline.
 List<Insight> insightsBefore(
   List<Insight> all,
   Insight pivot, {
