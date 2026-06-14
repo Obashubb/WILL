@@ -227,9 +227,7 @@ class WearableService extends GetxController {
       // No service filter: we want every nearby device so the user can see
       // what's around, even when their band is misconfigured or off. The
       // sheet pins Will Band candidates to the top of the list.
-      await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 30),
-      );
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 30));
     } catch (_) {
       _setError("Couldn't start scanning. Please try again.");
       return;
@@ -312,6 +310,15 @@ class WearableService extends GetxController {
         license: License.free,
         timeout: const Duration(seconds: 10),
       );
+
+      // Wait for the connection to actually reach "connected" before
+      // discovering services — iOS fails discovery if called too early.
+      await device.connectionState
+          .where((s) => s == BluetoothConnectionState.connected)
+          .first
+          .timeout(const Duration(seconds: 10));
+      await Future<void>.delayed(const Duration(milliseconds: 600));
+
       final services = await device.discoverServices();
       final service = services.firstWhere(
         (s) =>
