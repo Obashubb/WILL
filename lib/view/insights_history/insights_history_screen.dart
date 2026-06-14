@@ -14,9 +14,6 @@ import 'widgets/date_range_chips.dart';
 import 'widgets/severity_chips.dart';
 import 'widgets/timeline_row.dart';
 
-/// Retrospective view: every saved insight, grouped by day, filterable by
-/// severity and date range. Lives at `/insights-history` and is reached
-/// from the Profile screen.
 class InsightsHistoryScreen extends StatefulWidget {
   const InsightsHistoryScreen({super.key});
 

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -24,8 +25,6 @@ enum WearableConnectionState {
 }
 
 class WearableService extends GetxController {
-  // Public reactive state ---------------------------------------------------
-
   final Rx<WearableConnectionState> connectionState =
       WearableConnectionState.idle.obs;
   final Rxn<HealthSample> latestSample = Rxn<HealthSample>();
@@ -103,10 +102,6 @@ class WearableService extends GetxController {
     super.onClose();
   }
 
-  // Public API --------------------------------------------------------------
-
-  /// Kicks off pairing. Begins a BLE scan and exposes every nearby device
-  /// via [discoveredDevices]; the sheet renders that list directly.
   Future<void> startPairing() async {
     lastError.value = null;
     needsAppSettings.value = false;
@@ -114,8 +109,6 @@ class WearableService extends GetxController {
     await _startReal();
   }
 
-  /// Connects to a device the user picked from the nearby list. Reuses the
-  /// same connection path as the auto-connect-on-single-Will-match flow.
   Future<void> connectTo(BluetoothDevice device) async {
     _userStopped = false;
     try {
@@ -168,7 +161,6 @@ class WearableService extends GetxController {
       displaySample.value = sample;
     }
 
-    // Motion-gated, throttled inference.
     final now = DateTime.now();
     const motionThreshold = 0.6;
     if (now.difference(_lastInference).inSeconds >= 30 &&
@@ -236,9 +228,6 @@ class WearableService extends GetxController {
     _scanSub = FlutterBluePlus.scanResults.listen((results) async {
       _mergeScanResults(results);
 
-      // Auto-connect on the common case: exactly one Will Band in range and
-      // the user hasn't picked something else yet. Multiple candidates leave
-      // the choice to the user.
       if (connectionState.value != WearableConnectionState.scanning) return;
       final willMatches = results.where(_looksLikeWillBand).toList();
       if (willMatches.length == 1) {
@@ -274,7 +263,6 @@ class WearableService extends GetxController {
       for (final r in discoveredDevices) r.device.remoteId.str: r,
     };
     for (final r in results) {
-      // Skip totally unnamed devices to keep the list scannable.
       final name = r.device.advName.isNotEmpty
           ? r.device.advName
           : r.advertisementData.advName;
@@ -305,50 +293,191 @@ class WearableService extends GetxController {
     deviceName.value = device.advName.isNotEmpty
         ? device.advName
         : WillBle.advertisedName;
-    try {
-      await device.connect(
-        license: License.free,
-        timeout: const Duration(seconds: 10),
-      );
+    final tag = device.remoteId.str;
+    _log('[$tag] connect: starting');
 
-      // Wait for the connection to actually reach "connected" before
-      // discovering services — iOS fails discovery if called too early.
+    var attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        await device.connect(
+          license: License.free,
+          timeout: const Duration(seconds: 10),
+        );
+        _log('[$tag] connect: device.connect returned (attempt $attempt)');
+        break;
+      } catch (e, s) {
+        _report('connect.phase1.gatt (attempt $attempt)', tag, e, s);
+        if (attempt < 2 && _isTransientConnectError(e)) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          continue;
+        }
+        _setError(_connectErrorMessage(e));
+        return;
+      }
+    }
+
+    // iOS fails discoverServices if called before the connection has fully
+    // settled — wait for the state stream to confirm connected, then a beat.
+    try {
       await device.connectionState
           .where((s) => s == BluetoothConnectionState.connected)
           .first
           .timeout(const Duration(seconds: 10));
-      await Future<void>.delayed(const Duration(milliseconds: 600));
+      _log('[$tag] connect: connectionState reached connected');
+    } catch (e, s) {
+      _report('connect.phase2.settle', tag, e, s);
+      _setError(
+        'Your band connected but disconnected right away. '
+        'Reset it (power off then on) and try again.',
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 600));
 
+    final BluetoothService? service;
+    try {
       final services = await device.discoverServices();
-
-      final service = services.firstWhere((s) {
+      _log(
+        '[$tag] connect: discovered ${services.length} services: '
+        '${services.map((s) => s.uuid.toString()).join(", ")}',
+      );
+      service = services.cast<BluetoothService?>().firstWhere((s) {
+        if (s == null) return false;
         final found = s.uuid.toString().toLowerCase();
         final target = WillBle.serviceUuid.toLowerCase();
-        // Android may return the service UUID in short form (e.g. "57494c4c")
-        // while the constant is the full 128-bit form. Match on either.
         return found == target ||
-            target.startsWith(found) ||
-            found.startsWith(target.split('-').first);
-      });
-      _readingsChar = service.characteristics.firstWhere(
-        (c) =>
-            c.uuid.toString().toLowerCase() ==
-            WillBle.readingsCharacteristicUuid.toLowerCase(),
+            found == target.split('-').first ||
+            target.startsWith(found);
+      }, orElse: () => null);
+    } catch (e, s) {
+      _report('connect.phase3.discover', tag, e, s);
+      _setError(
+        'Connected, but couldn\'t read the band\'s services. '
+        'Reset the band (power off then on) and pair again.',
       );
-      _commandsChar = service.characteristics.firstWhere(
-        (c) =>
-            c.uuid.toString().toLowerCase() ==
-            WillBle.commandsCharacteristicUuid.toLowerCase(),
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+    if (service == null) {
+      _report(
+        'connect.phase3.missing_service',
+        tag,
+        StateError('Will service UUID not advertised by ${device.advName}'),
+        StackTrace.current,
       );
+      _setError(
+        "This device isn't running the Will Band firmware "
+        '(or it has a different service id). Make sure you picked the right one.',
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+
+    final readings = service.characteristics
+        .cast<BluetoothCharacteristic?>()
+        .firstWhere(
+          (c) =>
+              c?.uuid.toString().toLowerCase() ==
+              WillBle.readingsCharacteristicUuid.toLowerCase(),
+          orElse: () => null,
+        );
+    final commands = service.characteristics
+        .cast<BluetoothCharacteristic?>()
+        .firstWhere(
+          (c) =>
+              c?.uuid.toString().toLowerCase() ==
+              WillBle.commandsCharacteristicUuid.toLowerCase(),
+          orElse: () => null,
+        );
+    if (readings == null || commands == null) {
+      _report(
+        'connect.phase3.missing_characteristic',
+        tag,
+        StateError(
+          'readings=${readings != null}, commands=${commands != null}',
+        ),
+        StackTrace.current,
+      );
+      _setError(
+        "The band's firmware doesn't expose the expected channels. "
+        "It may need a firmware update.",
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+    _readingsChar = readings;
+    _commandsChar = commands;
+
+    try {
       await _readingsChar!.setNotifyValue(true);
       _notifySub = _readingsChar!.lastValueStream.listen(_decodeReading);
-      await ProfileService.setPairedDeviceId(device.remoteId.str);
-      connectionState.value = WearableConnectionState.connected;
-      _reconnectAttempt = 0;
-      _watchConnectionState(device);
-    } catch (_) {
-      _setError("Couldn't connect to your Will Band. Please try again.");
+      _log('[$tag] connect: notifications subscribed');
+    } catch (e, s) {
+      _report('connect.phase4.notify', tag, e, s);
+      _setError(
+        "Couldn't subscribe to the band's data stream. Try pairing again.",
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
     }
+
+    await ProfileService.setPairedDeviceId(device.remoteId.str);
+    connectionState.value = WearableConnectionState.connected;
+    _reconnectAttempt = 0;
+    _watchConnectionState(device);
+    _log('[$tag] connect: SUCCESS');
+  }
+
+  static void _log(String message) {
+    assert(() {
+      debugPrint('WearableService $message');
+      return true;
+    }());
+  }
+
+  static void _report(
+    String reason,
+    String deviceTag,
+    Object error,
+    StackTrace stack,
+  ) {
+    assert(() {
+      debugPrint('WearableService[$reason] [$deviceTag] $error');
+      return true;
+    }());
+  }
+
+  bool _isTransientConnectError(Object e) {
+    final s = e.toString().toLowerCase();
+    return s.contains('133') ||
+        s.contains('gatt error') ||
+        s.contains('androidcode: 133');
+  }
+
+  String _connectErrorMessage(Object e) {
+    final s = e.toString().toLowerCase();
+    if (s.contains('timeout')) {
+      return 'The band took too long to respond. Move it closer and try again.';
+    }
+    if (s.contains('already connected')) {
+      return 'The band is already connected. Try Disconnect first, then Pair.';
+    }
+    if (s.contains('not authorized') || s.contains('permission')) {
+      return 'Bluetooth access was blocked. Check Settings → Will → Bluetooth.';
+    }
+    return "Couldn't connect to the band. Move it closer or reset it, then try again.";
   }
 
   void _watchConnectionState(BluetoothDevice device) {
@@ -386,7 +515,6 @@ class WearableService extends GetxController {
         license: License.free,
         timeout: const Duration(seconds: 8),
       );
-      // Some firmwares need a re-discover after dropping. Cheap, idempotent.
       final services = await device.discoverServices();
       final service = services.firstWhere(
         (s) =>
@@ -406,7 +534,6 @@ class WearableService extends GetxController {
       connectionState.value = WearableConnectionState.connected;
       _reconnectAttempt = 0;
     } catch (_) {
-      // Move to the next backoff step.
       _scheduleReconnect();
     }
   }
@@ -448,11 +575,8 @@ class WearableService extends GetxController {
   }
 
   Future<_PermResult> _ensureAndroidPermissions() async {
-    // Android 12+ (API 31+) needs BLUETOOTH_SCAN + BLUETOOTH_CONNECT.
-    // Android 11 and below uses the legacy BLUETOOTH perms + ACCESS_FINE_LOCATION
-    // (declared in the manifest with maxSdkVersion="30"). Requesting
-    // locationWhenInUse here is a no-op on Android 12+ thanks to the
-    // neverForLocation flag on BLUETOOTH_SCAN, and is required on Android 11.
+    // locationWhenInUse required for Android <12; harmless on 12+ thanks to
+    // neverForLocation on BLUETOOTH_SCAN in the manifest.
     final statuses = await <Permission>[
       Permission.bluetoothScan,
       Permission.bluetoothConnect,

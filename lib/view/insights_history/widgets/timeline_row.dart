@@ -6,8 +6,6 @@ import '../../../models/insight.dart';
 import '../../../services/inference_service.dart';
 import '../../widgets/will_inkwell.dart';
 
-/// One compact row per insight. Used both in the main history list and in
-/// the "What happened before" timeline on the detail screen.
 class TimelineRow extends StatelessWidget {
   const TimelineRow({super.key, required this.insight, this.onTap});
 

@@ -6,9 +6,6 @@ import '../../models/user_baseline.dart';
 import '../../services/profile_service.dart';
 import '../widgets/will_primary_button.dart';
 
-/// Captures the user's resting HR / SpO₂ / temp so insight narratives can
-/// compare current readings against their normal. Pre-fills with sensible
-/// defaults (72 bpm, 97%, 36.7°C) when no baseline is saved yet.
 class BaselineSheet extends StatefulWidget {
   const BaselineSheet({super.key});
 

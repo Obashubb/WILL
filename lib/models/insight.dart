@@ -1,9 +1,6 @@
 import '../services/inference_service.dart';
 import 'health_sample.dart';
 
-/// A persisted snapshot of one inference event. The Insights History screen
-/// reads a list of these; the live Insights tab continues to read the
-/// in-memory `currentInsight` directly off `WearableService`.
 class Insight {
   const Insight({
     required this.id,
@@ -14,21 +11,11 @@ class Insight {
     this.helpful,
   });
 
-  /// Stable id, used by the detail screen's `extra` payload + list keys.
-  /// Built from millisecondsSinceEpoch + severity.name + condition.name so
-  /// it's deterministic and human-debuggable.
   final String id;
-
   final DateTime timestamp;
   final InsightLabel severity;
   final ConditionLabel condition;
-
-  /// The vitals snapshot at the moment of classification. Detail screen
-  /// renders HR / SpO₂ / temp / motion from this.
   final HealthSample sample;
-
-  /// User feedback on whether the insight was useful. `null` means not
-  /// rated yet, `true` = thumbs up, `false` = thumbs down.
   final bool? helpful;
 
   Map<String, dynamic> toJson() => {
@@ -41,9 +28,6 @@ class Insight {
       };
 
   factory Insight.fromJson(Map<String, dynamic> json) {
-    // Defensive: storage from earlier builds may be missing fields. We
-    // build an Insight from whatever we can, falling back to safe values
-    // so a single corrupt entry never crashes the screen.
     final ts = json['timestamp'] is int
         ? DateTime.fromMillisecondsSinceEpoch(json['timestamp'] as int)
         : DateTime.now();

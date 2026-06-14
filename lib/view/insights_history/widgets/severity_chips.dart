@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../../../core/colors.dart';
 import '../../../services/inference_service.dart';
 
-/// Single-select pill row over `InsightLabel?` — `null` is "All".
 class SeverityChips extends StatelessWidget {
   const SeverityChips({
     super.key,

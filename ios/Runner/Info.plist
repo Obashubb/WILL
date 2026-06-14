@@ -12,6 +12,10 @@
 	<string>Will uses Bluetooth to talk to your Will Band wristband so it can stream your vitals to the app.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Will doesn't track your location. This permission is requested by Bluetooth on some older Android versions, but you can deny it on iOS.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Will doesn't track your location. This permission is referenced by libraries the app uses, but the app itself never reads your location.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Will doesn't track your location. This key is required because a linked library references the location API, but the app itself never reads your location.</string>
 	<key>NSUserNotificationsUsageDescription</key>
 	<string>Will uses notifications to remind you to take medication, stay hydrated, and to alert you when your vitals look concerning.</string>
 	<key>CFBundleDisplayName</key>

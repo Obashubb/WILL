@@ -4,10 +4,6 @@ import '../models/health_sample.dart';
 import '../models/insight.dart';
 import 'inference_service.dart';
 
-/// Local persistence for past insights. The Insights History screen reads
-/// `readRecent()`; live classifications hit `recordIfMeaningful()` which
-/// applies a transition-aware rate limit so long calm stretches don't
-/// dump 30 calm entries per minute.
 class InsightsRepository {
   InsightsRepository._();
 
@@ -18,11 +14,6 @@ class InsightsRepository {
   static const Duration _retain = Duration(days: 7);
   static const Duration _heartbeat = Duration(minutes: 5);
 
-  /// Persists [result] for [sample] if it represents a meaningful change
-  /// since the last persisted entry, OR if 5+ minutes have passed since
-  /// the last heartbeat.
-  ///
-  /// Returns the persisted Insight, or `null` when we chose to skip.
   static Insight? recordIfMeaningful(
     InsightResult result,
     HealthSample sample,
@@ -48,8 +39,6 @@ class InsightsRepository {
     return insight;
   }
 
-  /// Returns the saved insights, newest first. Stale entries (older than
-  /// the retain window) are pruned on read so the list stays meaningful.
   static List<Insight> readRecent() {
     final raw = _box.read<List<dynamic>>(_key);
     if (raw == null) return <Insight>[];
@@ -57,16 +46,12 @@ class InsightsRepository {
     for (final entry in raw) {
       try {
         all.add(Insight.fromJson(Map<String, dynamic>.from(entry as Map)));
-      } catch (_) {
-        // Skip anything that no longer parses (schema drift).
-      }
+      } catch (_) {}
     }
     all.sort((a, b) => b.timestamp.compareTo(a.timestamp));
     return _pruneAndCap(all);
   }
 
-  /// Updates the helpful flag on a saved insight (if it still exists).
-  /// Used by the live tab's feedback row and the detail screen.
   static Future<void> rate(String id, bool helpful) async {
     final all = readRecent();
     final updated = all
