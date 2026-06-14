@@ -77,11 +77,17 @@ class DeviceSetupScreen extends StatelessWidget {
                   ),
                 ),
                 const Spacer(flex: 3),
-                WillPrimaryButton(
-                  label: busy ? 'Searching for your band' : 'Pair device',
-                  isLoading: busy,
-                  onPressed: busy ? null : pair,
-                ),
+                if (wearable.needsAppSettings.value)
+                  WillPrimaryButton(
+                    label: 'Open Settings',
+                    onPressed: wearable.openPermissionSettings,
+                  )
+                else
+                  WillPrimaryButton(
+                    label: busy ? 'Searching for your band' : 'Pair device',
+                    isLoading: busy,
+                    onPressed: busy ? null : pair,
+                  ),
                 const SizedBox(height: 14),
                 WillInkwell(
                   onTap: busy ? null : skip,

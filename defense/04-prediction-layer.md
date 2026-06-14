@@ -2,7 +2,7 @@
 
 ## What it does
 
-The wearable sends raw sensor numbers — heart rate, oxygen, temperature, motion. By themselves, these are just data points. The **prediction layer** turns them into **meaning**: "you look stressed," "you might be dehydrated," "your oxygen looks abnormal."
+The wearable sends raw sensor numbers, heart rate, oxygen, temperature, motion. By themselves, these are just data points. The **prediction layer** turns them into **meaning**: "you look stressed," "you might be dehydrated," "your oxygen looks abnormal."
 
 It is the bridge between sensor data and the user's understanding.
 
@@ -18,9 +18,9 @@ The flow has three stages:
 └────────────────────────┘   └─────────────────────────┘   └────────────────────┘
 ```
 
-**Stage 1 — sample collection.** Every reading from the band is added to a rolling buffer that holds the last 30 seconds of data.
+**Stage 1, sample collection.** Every reading from the band is added to a rolling buffer that holds the last 30 seconds of data.
 
-**Stage 2 — feature extraction.** Raw numbers alone do not predict much. We compute simple summary numbers — called **features** — over the window:
+**Stage 2, feature extraction.** Raw numbers alone do not predict much. We compute simple summary numbers, called **features**, over the window:
 
 - Average heart rate
 - Minimum SpO₂
@@ -30,16 +30,16 @@ The flow has three stages:
 
 This is the same idea as RMS or peak-to-peak in signal processing: condense a noisy signal into a few descriptive numbers.
 
-**Stage 3 — classification.** The set of features is fed into a trained Random Forest model (see `05-random-forest.md`). The model returns:
+**Stage 3, classification.** The set of features is fed into a trained Random Forest model (see `05-random-forest.md`). The model returns:
 
-- A **label** — Normal, Stress, Dehydration, Abnormal oxygen.
-- A **confidence score** — between 0 and 1, how sure the model is.
+- A **label**, Normal, Stress, Dehydration, Abnormal oxygen.
+- A **confidence score**, between 0 and 1, how sure the model is.
 
 The label is shown on the Insights tab. If the score is high *and* the label is concerning, an alert is raised (vibration on the wearable, push notification on the phone).
 
 ## Why we built it this way
 
-**Tradeoff 1 — fixed rules vs. a trained model.** We could write simple if-then rules ("if HR > 120 then alert"). Rules are easy to read and explain. But:
+**Tradeoff 1, fixed rules vs. a trained model.** We could write simple if-then rules ("if HR > 120 then alert"). Rules are easy to read and explain. But:
 
 - The thresholds for sickle cell patients vary by person and by what they are doing.
 - Multiple sensors *in combination* predict crises better than any one alone.
@@ -47,14 +47,14 @@ The label is shown on the Insights tab. If the score is high *and* the label is 
 
 The model is a bit harder to defend ("why did it say that?") but more accurate. To compensate, we expose the confidence score so the app stays transparent.
 
-**Tradeoff 2 — running on the phone vs. in the cloud.** Already discussed in `03-firebase.md`. The phone wins because the model is tiny and we want low-latency, offline-capable insights.
+**Tradeoff 2, running on the phone vs. in the cloud.** Already discussed in `03-firebase.md`. The phone wins because the model is tiny and we want low-latency, offline-capable insights.
 
-**Tradeoff 3 — a 30-second window vs. a longer history.** Shorter window = faster reaction, more false alarms. Longer window = more stable but slow to react. Thirty seconds is the balance used in similar wearable studies.
+**Tradeoff 3, a 30-second window vs. a longer history.** Shorter window = faster reaction, more false alarms. Longer window = more stable but slow to react. Thirty seconds is the balance used in similar wearable studies.
 
 ## Why this fits our scope
 
-- The PRD asks for "intelligent recommendations" — a rule-based system would be limiting.
-- The classifier must run offline — on-device inference is the only fit.
+- The PRD asks for "intelligent recommendations", a rule-based system would be limiting.
+- The classifier must run offline, on-device inference is the only fit.
 - We have time to train one model on the labelled data we collect (or synthesize for the prototype), but not time to build a real-time cloud inference pipeline.
 
 ## Example walkthrough
@@ -89,13 +89,23 @@ The Random Forest looks at these five numbers, walks through its decision trees,
 - Logs the insight to Firestore for history.
 - If confidence had been higher (say > 0.9) and the label was a crisis pattern, it would also vibrate the band and push a notification.
 
+## Current state
+
+- The model is loaded once at startup in `InferenceService.onInit()`.
+- A 30-second rolling buffer is maintained inside the service. As soon as it has at least 5 samples, it starts publishing insights.
+- Every new sample from `WearableService.latestSample` triggers a recomputation, tree walks are microseconds, so this stays cheap.
+- The latest insight is exposed as `Rxn<Insight>` and consumed by the Insights tab via `Obx`.
+
 ## Where to look
 
-- `lib/services/inference_service.dart` — planned location of the prediction pipeline.
-- `assets/ml/model.json` — planned location of the trained model (loaded at startup).
-- `05-random-forest.md` — how the classifier itself works.
+- `lib/services/inference_service.dart`, pipeline (load → ingest → features → predict).
+- `lib/models/insight.dart`, `Insight`, `InsightFeatures`, `InsightLabel` enum + display copy + recommendations.
+- `assets/ml/model.json`, trained / hand-tuned Random Forest, loaded at startup.
+- `tools/train_model.py`, Python sklearn script that regenerates `model.json` once a labelled dataset exists.
+- `lib/view/insights/insights_screen.dart`, UI: status hero, "What we see" feature breakdown, recommendations.
+- `05-random-forest.md`, how the classifier itself works.
 
 ## Further reading
 
-- [Feature engineering for time series](https://en.wikipedia.org/wiki/Feature_engineering) — Wikipedia overview.
-- [Random Forests for biomedical signals](https://scholar.google.com/scholar?q=random+forest+wearable+sickle+cell) — search starting point.
+- [Feature engineering for time series](https://en.wikipedia.org/wiki/Feature_engineering), Wikipedia overview.
+- [Random Forests for biomedical signals](https://scholar.google.com/scholar?q=random+forest+wearable+sickle+cell), search starting point.
