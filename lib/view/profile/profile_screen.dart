@@ -5,9 +5,15 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/colors.dart';
 import '../../core/router/routes.dart';
+import '../../helpers/relative_time.dart';
+import '../../services/insights_repository.dart';
+import '../../services/profile_service.dart';
+import '../../services/wearable_service.dart';
 import '../auth/auth_controller.dart';
 import '../widgets/section_title.dart';
 import '../widgets/will_inkwell.dart';
+import 'baseline_sheet.dart';
+import 'wearable_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -25,6 +31,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget build(BuildContext context) {
     super.build(context);
     final auth = Get.find<AuthController>();
+    final wearable = Get.find<WearableService>();
     return Obx(() {
       final user = auth.user.value;
       return ListView(
@@ -40,14 +47,28 @@ class _ProfileScreenState extends State<ProfileScreen>
           _SettingRow(
             icon: CupertinoIcons.bluetooth,
             label: 'Wearable',
-            value: 'Mock band',
-            onTap: () {},
+            value: _wearableSummary(wearable),
+            onTap: () => _openWearableSheet(context),
           ),
           _SettingRow(
             icon: CupertinoIcons.bell,
             label: 'Reminders',
             value: 'On',
             onTap: () {},
+          ),
+          const SizedBox(height: 28),
+          const _RowDivider(label: 'Health'),
+          _SettingRow(
+            icon: CupertinoIcons.heart_circle,
+            label: 'Resting baseline',
+            value: _baselineSummary(),
+            onTap: () => _openBaselineSheet(context),
+          ),
+          _SettingRow(
+            icon: CupertinoIcons.sparkles,
+            label: 'Insights history',
+            value: _insightsCountSummary(),
+            onTap: () => context.push(WillRoutes.insightsHistory),
           ),
           const SizedBox(height: 28),
           const _RowDivider(label: 'App'),
@@ -85,6 +106,63 @@ class _ProfileScreenState extends State<ProfileScreen>
         ],
       );
     });
+  }
+
+  String _wearableSummary(WearableService wearable) {
+    final state = wearable.connectionState.value;
+    final lastSeen = wearable.lastSampleAt.value;
+    switch (state) {
+      case WearableConnectionState.connected:
+        return lastSeen != null
+            ? 'Connected · ${RelativeTime.short(lastSeen)}'
+            : 'Connected';
+      case WearableConnectionState.connecting:
+        return 'Connecting…';
+      case WearableConnectionState.scanning:
+        return 'Scanning…';
+      case WearableConnectionState.disconnected:
+        return 'Reconnecting…';
+      case WearableConnectionState.error:
+        return 'Tap to fix';
+      case WearableConnectionState.idle:
+        return 'Not paired';
+    }
+  }
+
+  void _openWearableSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: WillColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const WearableSheet(),
+    );
+  }
+
+  void _openBaselineSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: WillColors.background,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => const BaselineSheet(),
+    );
+  }
+
+  String _baselineSummary() {
+    final b = ProfileService.readBaseline();
+    if (b == null) return 'Not set';
+    return '${b.restingHr} bpm · ${b.restingSpo2}%';
+  }
+
+  String _insightsCountSummary() {
+    final n = InsightsRepository.readRecent().length;
+    if (n == 0) return 'None yet';
+    return '$n saved';
   }
 }
 

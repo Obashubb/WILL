@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/colors.dart';
 import '../../models/health_sample.dart';
 import '../../services/samples_repository.dart';
+import '../../services/sync_service.dart';
 import '../../services/wearable_service.dart';
 import '../widgets/empty_placeholder.dart';
 import '../widgets/section_title.dart';
@@ -105,57 +106,100 @@ class _HistoryScreenState extends State<HistoryScreen>
   _Metric _metric = _Metric.heartRate;
   _Window _window = _Window.day; // default to Day view
 
+  // We snapshot the sample list here and rebuild charts at most every 30s.
+  // Live charts that redraw on every BLE sample are wasteful and visually
+  // distracting; the band streams faster than the eye cares to follow.
+  List<HealthSample> _samples = const [];
+  DateTime _lastRender = DateTime.fromMillisecondsSinceEpoch(0);
+  static const _renderDebounce = Duration(seconds: 30);
+  Worker? _sampleWatcher;
+
   @override
   bool get wantKeepAlive => true;
 
   @override
+  void initState() {
+    super.initState();
+    _refreshSamples();
+    final wearable = Get.find<WearableService>();
+    _sampleWatcher = ever<HealthSample?>(wearable.latestSample, (_) {
+      if (DateTime.now().difference(_lastRender) >= _renderDebounce) {
+        if (mounted) setState(_refreshSamples);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sampleWatcher?.dispose();
+    super.dispose();
+  }
+
+  void _refreshSamples() {
+    final cutoff = DateTime.now().subtract(_window.span);
+    _samples = SamplesRepository.readRecent()
+        .where((s) => s.timestamp.isAfter(cutoff))
+        .toList();
+    _lastRender = DateTime.now();
+  }
+
+  Future<void> _onRefresh() async {
+    setState(_refreshSamples);
+    try {
+      await Get.find<SyncService>().flushNow();
+    } catch (_) {
+      // Best-effort sync; pull-to-refresh stays responsive even when offline.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     super.build(context);
-    final wearable = Get.find<WearableService>();
-    return Obx(() {
-      wearable.latestSample.value; // rebuild when a new sample lands
-
-      // Filter to only samples inside the selected window.
-      final cutoff = DateTime.now().subtract(_window.span);
-      final samples = SamplesRepository.readRecent()
-          .where((s) => s.timestamp.isAfter(cutoff))
-          .toList();
-
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
+    return RefreshIndicator(
+      onRefresh: _onRefresh,
+      color: WillColors.primary,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SectionTitle('History'),
           const SizedBox(height: 12),
           _MetricPicker(
             value: _metric,
-            onChanged: (m) => setState(() => _metric = m),
+            onChanged: (m) => setState(() {
+              _metric = m;
+              _refreshSamples();
+            }),
           ),
           const SizedBox(height: 12),
           _WindowPicker(
             value: _window,
-            onChanged: (w) => setState(() => _window = w),
+            onChanged: (w) => setState(() {
+              _window = w;
+              _refreshSamples();
+            }),
           ),
           const SizedBox(height: 18),
           SizedBox(
             height: 400,
-            child: samples.isEmpty
+            child: _samples.isEmpty
                 ? const EmptyPlaceholder(
                     icon: Icons.show_chart,
                     title: 'No readings yet.',
                     subtitle:
-                        'Trends will appear here as the band collects data.',
+                        'Trends will appear here as the band collects data. '
+                        'Pull down to refresh.',
                   )
                 : _metric == _Metric.stepcount
-                ? _StepsBarChart(samples: samples, metric: _metric)
+                ? _StepsBarChart(samples: _samples, metric: _metric)
                 : _TrendChart(
-                    samples: samples,
+                    samples: _samples,
                     metric: _metric,
                     window: _window,
                   ),
           ),
         ],
-      );
-    });
+      ),
+    );
   }
 }
 
