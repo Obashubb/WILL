@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io' show Platform;
 import 'dart:math';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -27,6 +28,7 @@ class WearableService extends GetxController {
   final Rxn<HealthSample> latestSample = Rxn<HealthSample>();
   final RxString deviceName = ''.obs;
   final RxnString lastError = RxnString();
+  final RxBool needsAppSettings = false.obs;
   final Rx<InsightResult> currentInsight = const InsightResult(
     InsightLabel.normal,
     ConditionLabel.none,
@@ -58,11 +60,18 @@ class WearableService extends GetxController {
   /// real Will Band, then subscribes to its notify characteristic.
   Future<void> startPairing() async {
     lastError.value = null;
+    needsAppSettings.value = false;
     if (mockMode.value) {
       await _startMock();
       return;
     }
     await _startReal();
+  }
+
+  /// Opens the OS settings page for this app so the user can re-enable
+  /// Bluetooth permission after a permanent denial.
+  Future<void> openPermissionSettings() async {
+    await openAppSettings();
   }
 
   Future<void> stop() async {
@@ -168,15 +177,35 @@ class WearableService extends GetxController {
   // -- Real BLE ----------------------------------------------------------
 
   Future<void> _startReal() async {
-    final ok = await _ensurePermissions();
-    if (!ok) {
-      connectionState.value = WearableConnectionState.error;
-      lastError.value = 'Bluetooth permission denied.';
+    // On iOS, Core Bluetooth shows the system permission prompt the first time
+    // we scan, driven by NSBluetoothAlwaysUsageDescription in Info.plist.
+    // Android requires explicit runtime permissions.
+    if (Platform.isAndroid) {
+      final result = await _ensureAndroidPermissions();
+      if (result == _PermResult.permanentlyDenied) {
+        _setError(
+          'Bluetooth access is blocked. Open Settings to enable it.',
+          needsSettings: true,
+        );
+        return;
+      }
+      if (result == _PermResult.denied) {
+        _setError('Bluetooth permission was denied. Please try again.');
+        return;
+      }
+    }
+
+    if (!await FlutterBluePlus.isSupported) {
+      _setError('This device does not support Bluetooth Low Energy.');
       return;
     }
-    if (!await FlutterBluePlus.isSupported) {
-      connectionState.value = WearableConnectionState.error;
-      lastError.value = 'This device does not support Bluetooth Low Energy.';
+
+    final adapter = await FlutterBluePlus.adapterState.first.timeout(
+      const Duration(seconds: 1),
+      onTimeout: () => BluetoothAdapterState.unknown,
+    );
+    if (adapter != BluetoothAdapterState.on) {
+      _setError('Bluetooth is off. Please turn it on, then try again.');
       return;
     }
 
@@ -187,12 +216,12 @@ class WearableService extends GetxController {
         withServices: [Guid(WillBle.serviceUuid)],
         timeout: const Duration(seconds: 15),
       );
-    } catch (e) {
-      connectionState.value = WearableConnectionState.error;
-      lastError.value = 'Could not start scan: $e';
+    } catch (_) {
+      _setError("Couldn't start scanning. Please try again.");
       return;
     }
 
+    var foundDevice = false;
     _scanSub = FlutterBluePlus.scanResults.listen((results) async {
       if (results.isEmpty) return;
       final hit = results.firstWhere(
@@ -203,10 +232,21 @@ class WearableService extends GetxController {
                 .contains(WillBle.serviceUuid.toLowerCase()),
         orElse: () => results.first,
       );
+      foundDevice = true;
       await FlutterBluePlus.stopScan();
       await _scanSub?.cancel();
       _scanSub = null;
       await _connect(hit.device);
+    });
+
+    // Surface a friendly message if the scan finished without finding the band.
+    Future<void>.delayed(const Duration(seconds: 16), () {
+      if (!foundDevice &&
+          connectionState.value == WearableConnectionState.scanning) {
+        _setError(
+          "Couldn't find your Will Band nearby. Make sure it's powered on and close by.",
+        );
+      }
     });
   }
 
@@ -241,9 +281,8 @@ class WearableService extends GetxController {
       _notifySub = _readingsChar!.lastValueStream.listen(_decodeReading);
       await ProfileService.setPairedDeviceId(device.remoteId.str);
       connectionState.value = WearableConnectionState.connected;
-    } catch (e) {
-      connectionState.value = WearableConnectionState.error;
-      lastError.value = 'Failed to connect: $e';
+    } catch (_) {
+      _setError("Couldn't connect to your Will Band. Please try again.");
     }
   }
 
@@ -278,13 +317,30 @@ class WearableService extends GetxController {
     );
   }
 
-  Future<bool> _ensurePermissions() async {
-    final statuses = await [
+  Future<_PermResult> _ensureAndroidPermissions() async {
+    // Android 12+ (API 31+) needs BLUETOOTH_SCAN + BLUETOOTH_CONNECT.
+    // Android 11 and below uses the legacy BLUETOOTH perms + ACCESS_FINE_LOCATION
+    // (declared in the manifest with maxSdkVersion="30"). Requesting
+    // locationWhenInUse here is a no-op on Android 12+ thanks to the
+    // neverForLocation flag on BLUETOOTH_SCAN, and is required on Android 11.
+    final statuses = await <Permission>[
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
       Permission.locationWhenInUse,
     ].request();
-    return statuses.values.every((s) => s.isGranted || s.isLimited);
+    if (statuses.values.any((s) => s.isPermanentlyDenied)) {
+      return _PermResult.permanentlyDenied;
+    }
+    if (statuses.values.every((s) => s.isGranted || s.isLimited)) {
+      return _PermResult.granted;
+    }
+    return _PermResult.denied;
+  }
+
+  void _setError(String message, {bool needsSettings = false}) {
+    connectionState.value = WearableConnectionState.error;
+    lastError.value = message;
+    needsAppSettings.value = needsSettings;
   }
 
   void _teardown() {
@@ -315,3 +371,5 @@ class WearableService extends GetxController {
     );
   }
 }
+
+enum _PermResult { granted, denied, permanentlyDenied }
