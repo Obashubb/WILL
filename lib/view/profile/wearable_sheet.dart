@@ -35,7 +35,6 @@ class WearableSheet extends StatelessWidget {
             final sample = wearable.displaySample.value;
             final lastSeen = wearable.lastSampleAt.value;
             final adapter = wearable.adapterState.value;
-            final mock = wearable.mockMode.value;
             final needsSettings = wearable.needsAppSettings.value;
 
             return Column(
@@ -53,24 +52,17 @@ class WearableSheet extends StatelessWidget {
                         sample: sample,
                         lastSeen: lastSeen,
                         deviceName: wearable.deviceName.value,
-                        mock: mock,
-                      ),
-                      const SizedBox(height: 18),
-                      _DemoToggle(
-                        enabled: mock,
-                        onChanged: wearable.setMockMode,
                       ),
                       const SizedBox(height: 22),
                       _ListArea(
                         wearable: wearable,
                         needsSettings: needsSettings,
                         adapter: adapter,
-                        mock: mock,
                       ),
                     ],
                   ),
                 ),
-                _Footer(wearable: wearable, mock: mock),
+                _Footer(wearable: wearable),
                 const SizedBox(height: 12),
               ],
             );
@@ -139,21 +131,17 @@ class _ConnectionCard extends StatelessWidget {
     required this.sample,
     required this.lastSeen,
     required this.deviceName,
-    required this.mock,
   });
 
   final WearableConnectionState state;
   final HealthSample? sample;
   final DateTime? lastSeen;
   final String deviceName;
-  final bool mock;
 
   @override
   Widget build(BuildContext context) {
     final spec = _spec(state);
-    final title = mock
-        ? 'Demo band'
-        : (deviceName.isNotEmpty ? deviceName : 'Will Band');
+    final title = deviceName.isNotEmpty ? deviceName : 'Will Band';
     final lastSeenText = lastSeen != null
         ? 'Updated ${RelativeTime.short(lastSeen!)}'
         : null;
@@ -319,78 +307,19 @@ class _MiniStat extends StatelessWidget {
   }
 }
 
-class _DemoToggle extends StatelessWidget {
-  const _DemoToggle({required this.enabled, required this.onChanged});
-
-  final bool enabled;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
-      decoration: BoxDecoration(
-        color: WillColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: WillColors.border.withValues(alpha: 0.7)),
-      ),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Demo mode',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: WillColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Stream realistic mock vitals without a band.',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: WillColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          CupertinoSwitch(
-            value: enabled,
-            onChanged: onChanged,
-            activeTrackColor: WillColors.primary,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _ListArea extends StatelessWidget {
   const _ListArea({
     required this.wearable,
     required this.needsSettings,
     required this.adapter,
-    required this.mock,
   });
 
   final WearableService wearable;
   final bool needsSettings;
   final BluetoothAdapterState? adapter;
-  final bool mock;
 
   @override
   Widget build(BuildContext context) {
-    if (mock) {
-      return const _InlineNote(
-        title: 'Demo mode is on.',
-        body: 'Turn it off to scan for your real Will Band.',
-      );
-    }
     if (needsSettings) {
       return _PermissionDeniedCard(
         onOpenSettings: wearable.openPermissionSettings,
@@ -715,10 +644,9 @@ class _InlineNote extends StatelessWidget {
 }
 
 class _Footer extends StatelessWidget {
-  const _Footer({required this.wearable, required this.mock});
+  const _Footer({required this.wearable});
 
   final WearableService wearable;
-  final bool mock;
 
   @override
   Widget build(BuildContext context) {
@@ -726,15 +654,13 @@ class _Footer extends StatelessWidget {
     final connected = state == WearableConnectionState.connected;
     final scanning = state == WearableConnectionState.scanning;
     final connecting = state == WearableConnectionState.connecting;
-    final buttonLabel = mock
-        ? (connected ? 'Stop demo' : 'Start demo')
-        : connected
-            ? 'Disconnect'
-            : scanning
-                ? 'Stop scanning'
-                : connecting
-                    ? 'Cancel'
-                    : 'Scan for bands';
+    final buttonLabel = connected
+        ? 'Disconnect'
+        : scanning
+            ? 'Stop scanning'
+            : connecting
+                ? 'Cancel'
+                : 'Scan for bands';
     Future<void> onTap() async {
       if (connected || scanning || connecting) {
         await wearable.stop();
@@ -753,7 +679,7 @@ class _Footer extends StatelessWidget {
             isLoading: connecting,
             onPressed: onTap,
           ),
-          if (connected && !mock) ...[
+          if (connected) ...[
             const SizedBox(height: 8),
             TextButton(
               onPressed: () async {

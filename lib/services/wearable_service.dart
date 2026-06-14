@@ -49,13 +49,8 @@ class WearableService extends GetxController {
   /// to swap the "turn on Bluetooth" card in for the device list.
   final Rxn<BluetoothAdapterState> adapterState = Rxn<BluetoothAdapterState>();
 
-  /// Mock mode is on while the hardware is still being built. Toggle off
-  /// when the firmware is flashed and a real Will Band is in range.
-  final RxBool mockMode = false.obs;
-
   // Internal state ----------------------------------------------------------
 
-  Timer? _mockTimer;
   StreamSubscription<List<ScanResult>>? _scanSub;
   StreamSubscription<BluetoothAdapterState>? _adapterSub;
   StreamSubscription<BluetoothConnectionState>? _deviceConnSub;
@@ -63,7 +58,6 @@ class WearableService extends GetxController {
   BluetoothCharacteristic? _readingsChar;
   BluetoothCharacteristic? _commandsChar;
   StreamSubscription<List<int>>? _notifySub;
-  final Random _rng = Random();
   DateTime _lastInference = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastDisplay = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastAlert = DateTime.fromMillisecondsSinceEpoch(0);
@@ -110,17 +104,12 @@ class WearableService extends GetxController {
 
   // Public API --------------------------------------------------------------
 
-  /// Kicks off pairing. In mock mode this spins up the periodic sample
-  /// emitter; in real mode it begins a BLE scan and exposes every nearby
-  /// device via [discoveredDevices].
+  /// Kicks off pairing. Begins a BLE scan and exposes every nearby device
+  /// via [discoveredDevices]; the sheet renders that list directly.
   Future<void> startPairing() async {
     lastError.value = null;
     needsAppSettings.value = false;
     _userStopped = false;
-    if (mockMode.value) {
-      await _startMock();
-      return;
-    }
     await _startReal();
   }
 
@@ -136,17 +125,6 @@ class WearableService extends GetxController {
     await _connect(device);
   }
 
-  /// Toggles demo mode and reflects the change in connection state right
-  /// away. Turning demo on starts mock samples; turning it off stops them.
-  Future<void> setMockMode(bool enabled) async {
-    if (mockMode.value == enabled) return;
-    mockMode.value = enabled;
-    await stop();
-    if (enabled) {
-      await startPairing();
-    }
-  }
-
   Future<void> stop() async {
     _userStopped = true;
     _clearReconnect();
@@ -156,10 +134,6 @@ class WearableService extends GetxController {
   }
 
   Future<bool> sendCommand(WearableCommand cmd) async {
-    if (mockMode.value) {
-      // No-op for mock; pretend the command worked.
-      return true;
-    }
     final char = _commandsChar;
     if (char == null) return false;
     try {
@@ -175,51 +149,6 @@ class WearableService extends GetxController {
   /// Bluetooth permission after a permanent denial.
   Future<void> openPermissionSettings() async {
     await openAppSettings();
-  }
-
-  // Mock --------------------------------------------------------------------
-
-  Future<void> _startMock() async {
-    connectionState.value = WearableConnectionState.scanning;
-    deviceName.value = 'Mock Will Band';
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    connectionState.value = WearableConnectionState.connecting;
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    connectionState.value = WearableConnectionState.connected;
-    await ProfileService.setPairedDeviceId('mock-band-001');
-
-    _mockTimer?.cancel();
-    _mockTimer = Timer.periodic(const Duration(seconds: 2), (_) => _emitMock());
-    _emitMock();
-  }
-
-  void _emitMock() {
-    final prev = latestSample.value;
-
-    final hrBase = prev?.heartRate ?? 78;
-    final spo2Base = prev?.spo2 ?? 97;
-    final tempBase = prev?.temperature ?? 36.7;
-
-    final hr = (hrBase + _rng.nextInt(7) - 3).clamp(55, 110);
-    final spo2 = (spo2Base + _rng.nextInt(3) - 1).clamp(93, 100);
-    final temp = (tempBase + (_rng.nextDouble() - 0.5) * 0.1).clamp(36.2, 37.4);
-    final stepcount = (prev?.stepcount ?? 0) + _rng.nextInt(5);
-    final motion = _rng.nextDouble() * 0.4;
-
-    _publish(
-      HealthSample(
-        heartRate: hr,
-        spo2: spo2,
-        temperature: double.parse(temp.toStringAsFixed(1)),
-        motion: double.parse(motion.toStringAsFixed(2)),
-        stepcount: stepcount,
-        perfusionIndex: double.parse(
-          (1 + _rng.nextDouble() * 3).toStringAsFixed(2),
-        ),
-        hrv: 20 + _rng.nextInt(40),
-        timestamp: DateTime.now(),
-      ),
-    );
   }
 
   /// Single funnel for every new sample: live UI, last-seen, recent-history
@@ -529,8 +458,6 @@ class WearableService extends GetxController {
   }
 
   void _teardown() {
-    _mockTimer?.cancel();
-    _mockTimer = null;
     _notifySub?.cancel();
     _notifySub = null;
     _scanSub?.cancel();

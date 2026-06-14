@@ -92,7 +92,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   String _wearableSummary(WearableService wearable) {
-    if (wearable.mockMode.value) return 'Demo mode';
     final state = wearable.connectionState.value;
     final lastSeen = wearable.lastSampleAt.value;
     switch (state) {

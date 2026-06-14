@@ -38,5 +38,18 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      # permission_handler compiles each permission group behind a macro;
+      # without these flags Permission.bluetooth*/locationWhenInUse return
+      # denied without ever showing the iOS system prompt. We only really
+      # use Core Bluetooth on iOS today, but enabling these macros keeps
+      # any future permission_handler call safe.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= [
+        '$(inherited)',
+        'PERMISSION_BLUETOOTH=1',
+        'PERMISSION_LOCATION=1',
+        'PERMISSION_NOTIFICATIONS=1',
+      ]
+    end
   end
 end
