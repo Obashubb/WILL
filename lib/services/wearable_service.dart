@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:math';
 
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:get/get.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -305,45 +306,176 @@ class WearableService extends GetxController {
     deviceName.value = device.advName.isNotEmpty
         ? device.advName
         : WillBle.advertisedName;
-    try {
-      await device.connect(
-        license: License.free,
-        timeout: const Duration(seconds: 10),
-      );
+    final tag = device.remoteId.str;
+    _log('[$tag] connect: starting');
 
-      // Wait for the connection to actually reach "connected" before
-      // discovering services — iOS fails discovery if called too early.
+    // Phase 1 — open the GATT connection. Android occasionally returns
+    // "GATT error 133" on the first attempt; one retry recovers the bulk
+    // of those cases without bothering the user.
+    var attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        await device.connect(
+          license: License.free,
+          timeout: const Duration(seconds: 10),
+        );
+        _log('[$tag] connect: device.connect returned (attempt $attempt)');
+        break;
+      } catch (e) {
+        _log('[$tag] connect: device.connect FAILED (attempt $attempt): $e');
+        if (attempt < 2 && _isTransientConnectError(e)) {
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          continue;
+        }
+        _setError(_connectErrorMessage(e));
+        return;
+      }
+    }
+
+    // Phase 2 — wait for the connectionState stream to actually report
+    // "connected". iOS discoverServices fails if called before the
+    // connection has fully settled.
+    try {
       await device.connectionState
           .where((s) => s == BluetoothConnectionState.connected)
           .first
           .timeout(const Duration(seconds: 10));
-      await Future<void>.delayed(const Duration(milliseconds: 600));
+      _log('[$tag] connect: connectionState reached connected');
+    } catch (e) {
+      _log('[$tag] connect: settle FAILED: $e');
+      _setError(
+        'Your band connected but disconnected right away. '
+        'Reset it (power off then on) and try again.',
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 600));
 
+    // Phase 3 — service discovery + characteristic lookup. Use orElse so
+    // a stray non-Will device doesn't blow up with a StateError.
+    final BluetoothService? service;
+    try {
       final services = await device.discoverServices();
-      final service = services.firstWhere(
-        (s) =>
-            s.uuid.toString().toLowerCase() ==
-            WillBle.serviceUuid.toLowerCase(),
+      _log(
+        '[$tag] connect: discovered ${services.length} services: '
+        '${services.map((s) => s.uuid.toString()).join(", ")}',
       );
-      _readingsChar = service.characteristics.firstWhere(
-        (c) =>
-            c.uuid.toString().toLowerCase() ==
-            WillBle.readingsCharacteristicUuid.toLowerCase(),
+      service = services.cast<BluetoothService?>().firstWhere(
+            (s) =>
+                s?.uuid.toString().toLowerCase() ==
+                WillBle.serviceUuid.toLowerCase(),
+            orElse: () => null,
+          );
+    } catch (e) {
+      _log('[$tag] connect: discoverServices FAILED: $e');
+      _setError(
+        'Connected, but couldn\'t read the band\'s services. '
+        'Reset the band (power off then on) and pair again.',
       );
-      _commandsChar = service.characteristics.firstWhere(
-        (c) =>
-            c.uuid.toString().toLowerCase() ==
-            WillBle.commandsCharacteristicUuid.toLowerCase(),
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+    if (service == null) {
+      _log('[$tag] connect: Will service UUID not found on device');
+      _setError(
+        "This device isn't running the Will Band firmware "
+        '(or it has a different service id). Make sure you picked the right one.',
       );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+
+    final readings = service.characteristics.cast<BluetoothCharacteristic?>().firstWhere(
+          (c) =>
+              c?.uuid.toString().toLowerCase() ==
+              WillBle.readingsCharacteristicUuid.toLowerCase(),
+          orElse: () => null,
+        );
+    final commands = service.characteristics.cast<BluetoothCharacteristic?>().firstWhere(
+          (c) =>
+              c?.uuid.toString().toLowerCase() ==
+              WillBle.commandsCharacteristicUuid.toLowerCase(),
+          orElse: () => null,
+        );
+    if (readings == null || commands == null) {
+      _log(
+        '[$tag] connect: missing characteristic '
+        '(readings=${readings != null}, commands=${commands != null})',
+      );
+      _setError(
+        "The band's firmware doesn't expose the expected channels. "
+        "It may need a firmware update.",
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
+    }
+    _readingsChar = readings;
+    _commandsChar = commands;
+
+    // Phase 4 — subscribe to notifications and we're live.
+    try {
       await _readingsChar!.setNotifyValue(true);
       _notifySub = _readingsChar!.lastValueStream.listen(_decodeReading);
-      await ProfileService.setPairedDeviceId(device.remoteId.str);
-      connectionState.value = WearableConnectionState.connected;
-      _reconnectAttempt = 0;
-      _watchConnectionState(device);
-    } catch (_) {
-      _setError("Couldn't connect to your Will Band. Please try again.");
+      _log('[$tag] connect: notifications subscribed');
+    } catch (e) {
+      _log('[$tag] connect: setNotifyValue FAILED: $e');
+      _setError(
+        "Couldn't subscribe to the band's data stream. Try pairing again.",
+      );
+      try {
+        await device.disconnect();
+      } catch (_) {}
+      return;
     }
+
+    await ProfileService.setPairedDeviceId(device.remoteId.str);
+    connectionState.value = WearableConnectionState.connected;
+    _reconnectAttempt = 0;
+    _watchConnectionState(device);
+    _log('[$tag] connect: SUCCESS');
+  }
+
+  static void _log(String message) {
+    // Debug-mode only so the console isn't polluted in release builds.
+    // Run `flutter logs` (or watch Xcode/Android Studio) while pairing
+    // to see exactly which phase a problem device dies on.
+    assert(() {
+      debugPrint('WearableService $message');
+      return true;
+    }());
+  }
+
+  bool _isTransientConnectError(Object e) {
+    final s = e.toString().toLowerCase();
+    // Android's notorious GATT error 133, plus a couple of variants the
+    // platform returns when the stack hiccups during initial handshake.
+    return s.contains('133') ||
+        s.contains('gatt error') ||
+        s.contains('androidcode: 133');
+  }
+
+  String _connectErrorMessage(Object e) {
+    final s = e.toString().toLowerCase();
+    if (s.contains('timeout')) {
+      return 'The band took too long to respond. Move it closer and try again.';
+    }
+    if (s.contains('already connected')) {
+      return 'The band is already connected. Try Disconnect first, then Pair.';
+    }
+    if (s.contains('not authorized') || s.contains('permission')) {
+      return 'Bluetooth access was blocked. Check Settings → Will → Bluetooth.';
+    }
+    return "Couldn't connect to the band. Move it closer or reset it, then try again.";
   }
 
   void _watchConnectionState(BluetoothDevice device) {
